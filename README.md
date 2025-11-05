@@ -20,24 +20,50 @@ git clone <repository-url>
 cd domino-game-cli
 ```
 
-2. Install dependencies:
+1. Install dependencies:
+
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
+
+1. Activate the virtual environment:
+```bash
+# On macOS/Linux
+source .venv/bin/activate
+
+# On Windows
+.venv\Scripts\activate
+```
+
+**Or** skip activation and use `uv run` to run commands (see Usage below).
 
 ## 🎮 Usage
 
 ### Start a Game
 
+**Option A - With activated virtual environment:**
 ```bash
 # Play with default settings (first to 200 points)
-python3 mvp.py play
+python mvp.py play
 
 # Quick mode (first to 100 points)
-python3 mvp.py play --quick
+python mvp.py play --quick
 
 # Custom target score
-python3 mvp.py play --target 150
+python mvp.py play --target 150
+
+# Or use the installed CLI command
+domino play
+```
+
+**Option B - Without activating (using uv run):**
+
+```bash
+# Play with default settings
+uv run python mvp.py play
+
+# Or use the installed CLI command
+uv run domino play
 ```
 
 ### View Commands
