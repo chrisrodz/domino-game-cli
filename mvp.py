@@ -9,6 +9,19 @@ import random
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+import typer
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.prompt import Confirm
+from rich import box
+from rich.text import Text
+from InquirerPy import inquirer
+from InquirerPy.base.control import Choice
+
+# Initialize Rich console
+console = Console()
+app = typer.Typer(help="Caribbean Domino Game - 2v2 Domino Game CLI")
 
 
 class PlayerType(Enum):
@@ -24,6 +37,13 @@ class Domino:
 
     def __str__(self) -> str:
         return f"[{self.left}|{self.right}]"
+
+    def to_rich(self) -> str:
+        """Return a rich-formatted representation."""
+        colors = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'white']
+        left_color = colors[self.left % len(colors)]
+        right_color = colors[self.right % len(colors)]
+        return f"[bold {left_color}]{self.left}[/]|[bold {right_color}]{self.right}[/]"
 
     def value(self) -> int:
         """Total value (sum of both sides)."""
@@ -115,6 +135,12 @@ class Board:
         if self.is_empty():
             return "Empty board"
         return " ".join(str(d) for d in self.dominoes)
+
+    def to_rich(self) -> str:
+        """Return a rich-formatted representation of the board."""
+        if self.is_empty():
+            return "[dim]Empty board[/dim]"
+        return " ".join(f"[{d.to_rich()}]" for d in self.dominoes)
 
 
 class Player:
@@ -239,19 +265,29 @@ class Game:
         Execute a player's turn.
         Returns True if the game should continue, False if round ended.
         """
-        print(f"\n{'='*60}")
-        print(f"{player.name}'s Turn (Team {player.team + 1})")
-        print(f"{'='*60}")
-        print(f"Board: {self.board}")
-        print(f"Board ends: Left=[{self.board.left_value()}] Right=[{self.board.right_value()}]")
+        # Display turn header
+        console.print()
+        console.rule(f"[bold cyan]{player.name}'s Turn (Team {player.team + 1})[/bold cyan]")
+        console.print()
+
+        # Display board state
+        board_panel = Panel(
+            self.board.to_rich(),
+            title="[bold yellow]Board[/bold yellow]",
+            subtitle=f"[dim]Left: [{self.board.left_value()}] | Right: [{self.board.right_value()}][/dim]",
+            border_style="yellow"
+        )
+        console.print(board_panel)
 
         valid_moves = player.get_valid_moves(self.board)
 
         if not valid_moves:
-            print(f"{player.name} has no valid moves and must pass.")
+            console.print(f"[red]{player.name} has no valid moves and must pass.[/red]")
             player.passed_last_turn = True
             self.consecutive_passes += 1
-            input("Press Enter to continue...")
+
+            if player.player_type == PlayerType.HUMAN:
+                Confirm.ask("\nPress Enter to continue", default=True)
 
             # Check if game is blocked (all players passed)
             if self.consecutive_passes >= 4:
@@ -278,42 +314,70 @@ class Game:
                 self.board.play_domino(domino, on_left=False)
 
             player.remove_domino(domino)
-            print(f"\n{player.name} played {domino} on the {position}")
+            console.print(f"\n[green]✓[/green] {player.name} played [{domino.to_rich()}] on the [bold]{position}[/bold]")
 
             # Check if player went out
             if player.is_out():
                 return False
 
         if player.player_type == PlayerType.HUMAN:
-            input("\nPress Enter to continue...")
+            Confirm.ask("\nPress Enter to continue", default=True)
 
         return True
 
     def get_human_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
-        """Get move from human player."""
-        print(f"\nYour hand: {', '.join(str(d) for d in player.hand)}")
-        print(f"Your hand value: {player.hand_value()} points")
-        print("\nValid moves:")
+        """Get move from human player using arrow key navigation."""
+        # Display your hand in a nice table
+        hand_table = Table(title="[bold green]Your Hand[/bold green]", box=box.ROUNDED)
+        hand_table.add_column("Domino", style="cyan", justify="center")
+        hand_table.add_column("Value", style="yellow", justify="center")
 
-        for idx, (domino, position) in enumerate(valid_moves, 1):
-            print(f"  {idx}. Play {domino} on {position}")
+        sorted_hand = sorted(player.hand, key=lambda d: d.value())
+        for domino in sorted_hand:
+            hand_table.add_row(f"[{domino.to_rich()}]", str(domino.value()))
 
-        while True:
-            try:
-                choice = input(f"\nChoose move (1-{len(valid_moves)}): ").strip()
-                choice_idx = int(choice) - 1
+        hand_table.add_row("", "", end_section=True)
+        hand_table.add_row("[bold]Total[/bold]", f"[bold]{player.hand_value()}[/bold]")
 
-                if 0 <= choice_idx < len(valid_moves):
-                    return valid_moves[choice_idx]
-                else:
-                    print(f"Invalid choice. Please enter 1-{len(valid_moves)}")
-            except (ValueError, KeyboardInterrupt):
-                print("Invalid input. Please enter a number.")
+        console.print(hand_table)
+        console.print()
+
+        # Create choices for InquirerPy
+        choices = []
+        for domino, position in valid_moves:
+            # Create descriptive text for each move
+            position_text = {
+                'first': '🎯 First move',
+                'left': '⬅️  Play on left',
+                'right': '➡️  Play on right'
+            }.get(position, position)
+
+            choice_text = f"[{domino.to_rich()}] - {position_text} (value: {domino.value()})"
+            choices.append(Choice(value=(domino, position), name=choice_text))
+
+        # Use InquirerPy for interactive selection
+        console.print("[bold cyan]Use ↑↓ arrow keys to navigate, Enter to select[/bold cyan]")
+        selected = inquirer.select(
+            message="Choose your move:",
+            choices=choices,
+            pointer="👉",
+            style={
+                "questionmark": "#e5c07b",
+                "pointer": "#61afef",
+                "highlighted": "#61afef bold",
+            },
+            vi_mode=True,  # Enable vim-like navigation (j/k)
+            keybindings={
+                "toggle": [{"key": "space"}],
+            }
+        ).execute()
+
+        return selected
 
     def get_cpu_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
         """Simple CPU AI: prioritize high-value dominoes and doubles."""
-        print(f"\n{player.name} is thinking...")
-        print(f"{player.name}'s hand size: {len(player.hand)} dominoes")
+        console.print(f"\n[yellow]🤔 {player.name} is thinking...[/yellow]")
+        console.print(f"[dim]{player.name}'s hand: {len(player.hand)} dominoes[/dim]")
 
         # Strategy: Play highest value domino, prefer doubles
         best_move = None
@@ -328,6 +392,9 @@ class Game:
             if score > best_score:
                 best_score = score
                 best_move = (domino, position)
+
+        import time
+        time.sleep(0.5)  # Brief pause for realism
 
         return best_move
 
@@ -350,18 +417,31 @@ class Game:
         # Winner gets sum of ALL other players' points
         points = sum(p.hand_value() for p in self.players if p != winner)
 
-        print(f"\nGame blocked! Remaining hand values:")
+        console.print("\n[bold red]🚫 Game blocked![/bold red] Remaining hand values:")
+        blocked_table = Table(box=box.SIMPLE)
+        blocked_table.add_column("Player", style="cyan")
+        blocked_table.add_column("Hand Value", style="yellow", justify="right")
+
         for player in self.players:
-            print(f"  {player.name}: {player.hand_value()} points")
+            style = "bold green" if player == winner else ""
+            blocked_table.add_row(player.name, f"{player.hand_value()} points", style=style)
+
+        console.print(blocked_table)
 
         return (winner.team, points)
 
     def play_round(self):
         """Play a single round of dominoes."""
-        print(f"\n{'#'*60}")
-        print(f"# ROUND {self.round_number}")
-        print(f"# Team 1: {self.team_scores[0]} points | Team 2: {self.team_scores[1]} points")
-        print(f"{'#'*60}")
+        console.print()
+        console.rule(f"[bold magenta]⚡ ROUND {self.round_number} ⚡[/bold magenta]", style="magenta")
+
+        # Score display
+        score_table = Table(box=box.DOUBLE_EDGE, show_header=False)
+        score_table.add_column("Team", style="cyan bold", justify="center")
+        score_table.add_column("Score", style="yellow bold", justify="center")
+        score_table.add_row(f"Team 1 (You & Ally)", f"{self.team_scores[0]} pts")
+        score_table.add_row(f"Team 2 (Opponents)", f"{self.team_scores[1]} pts")
+        console.print(score_table, justify="center")
 
         self.board = Board()
         self.deal_dominoes()
@@ -370,10 +450,10 @@ class Game:
         # Find starting player
         self.current_player_idx = self.find_starting_player()
         starting_player = self.players[self.current_player_idx]
-        print(f"\n{starting_player.name} starts this round")
+        console.print(f"\n[bold green]🎲 {starting_player.name} starts this round[/bold green]")
 
         if starting_player.player_type == PlayerType.HUMAN:
-            input("\nPress Enter to start...")
+            Confirm.ask("\nPress Enter to start", default=True)
 
         # Play turns until round ends
         game_continues = True
@@ -388,36 +468,51 @@ class Game:
         winning_team, points = self.calculate_round_scores()
         self.team_scores[winning_team] += points
 
-        print(f"\n{'='*60}")
-        print(f"ROUND {self.round_number} COMPLETE!")
-        print(f"Team {winning_team + 1} wins {points} points!")
-        print(f"{'='*60}")
-        print(f"Team 1 (You & Ally): {self.team_scores[0]} points")
-        print(f"Team 2 (Opponents): {self.team_scores[1]} points")
-        print(f"{'='*60}")
+        console.print()
+        console.rule("[bold green]🎉 ROUND COMPLETE 🎉[/bold green]", style="green")
 
-        input("\nPress Enter to continue to next round...")
+        result_panel = Panel(
+            f"[bold cyan]Team {winning_team + 1}[/bold cyan] wins [bold yellow]{points} points![/bold yellow]\n\n"
+            f"[bold]Current Scores:[/bold]\n"
+            f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
+            f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points",
+            title=f"[bold]Round {self.round_number} Results[/bold]",
+            border_style="green"
+        )
+        console.print(result_panel)
+
+        Confirm.ask("\nPress Enter to continue to next round", default=True)
 
         self.round_number += 1
 
     def play_game(self):
         """Play the full game until a team reaches target score."""
-        print("\n" + "="*60)
-        print("CARIBBEAN DOMINOES - 2v2")
-        print("="*60)
-        print(f"Target Score: {self.target_score} points")
-        print("\nTeams:")
-        print("  Team 1: You & Ally")
-        print("  Team 2: Opponent 1 & Opponent 2")
-        print("\nRules:")
-        print("  - Each player gets 7 dominoes")
-        print("  - Match numbers on either end of the line")
-        print("  - Can't play? You must pass")
-        print("  - Round ends when someone goes out or game is blocked")
-        print("  - Winner gets points = sum of losers' remaining dominoes")
-        print("="*60)
+        # Welcome screen
+        console.clear()
+        welcome_text = Text()
+        welcome_text.append("🎲 ", style="bold yellow")
+        welcome_text.append("CARIBBEAN DOMINOES", style="bold cyan")
+        welcome_text.append(" 🎲", style="bold yellow")
 
-        input("\nPress Enter to start the game...")
+        welcome_panel = Panel(
+            f"[bold yellow]Target Score:[/bold yellow] {self.target_score} points\n\n"
+            f"[bold cyan]Teams:[/bold cyan]\n"
+            f"  🟢 Team 1: You & Ally\n"
+            f"  🔴 Team 2: Opponent 1 & Opponent 2\n\n"
+            f"[bold magenta]Rules:[/bold magenta]\n"
+            f"  • Each player gets 7 dominoes\n"
+            f"  • Match numbers on either end of the line\n"
+            f"  • Can't play? You must pass\n"
+            f"  • Round ends when someone goes out or game is blocked\n"
+            f"  • Winner gets points = sum of losers' remaining dominoes\n\n"
+            f"[dim]Use arrow keys (↑↓) or j/k to navigate menus[/dim]",
+            title=welcome_text,
+            border_style="cyan",
+            box=box.DOUBLE
+        )
+
+        console.print(welcome_panel)
+        Confirm.ask("\nReady to start", default=True)
 
         self.setup_players()
 
@@ -427,20 +522,105 @@ class Game:
         # Game over
         winning_team = 0 if self.team_scores[0] >= self.target_score else 1
 
-        print("\n" + "="*60)
-        print("GAME OVER!")
-        print("="*60)
-        print(f"Team {winning_team + 1} WINS!")
-        print(f"Final Scores:")
-        print(f"  Team 1 (You & Ally): {self.team_scores[0]} points")
-        print(f"  Team 2 (Opponents): {self.team_scores[1]} points")
-        print("="*60)
+        console.clear()
+        console.print()
+        console.rule("[bold yellow]🏆 GAME OVER 🏆[/bold yellow]", style="yellow")
+
+        game_over_style = "bold green" if winning_team == 0 else "bold red"
+        game_over_panel = Panel(
+            f"[{game_over_style}]Team {winning_team + 1} WINS![/{game_over_style}]\n\n"
+            f"[bold]Final Scores:[/bold]\n"
+            f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
+            f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points\n\n"
+            f"{'[green]Congratulations! 🎉[/green]' if winning_team == 0 else '[red]Better luck next time! 💪[/red]'}",
+            title="[bold]Game Results[/bold]",
+            border_style="yellow",
+            box=box.DOUBLE
+        )
+        console.print(game_over_panel)
+
+
+@app.command()
+def play(
+    target_score: int = typer.Option(200, "--target", "-t", help="Target score to win the game"),
+    quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins")
+):
+    """
+    🎲 Start a new game of Caribbean Dominoes!
+
+    Play a 2v2 domino game with arrow key navigation and beautiful interface.
+    """
+    game = Game()
+    if quick_mode:
+        game.target_score = 100
+        console.print("[yellow]⚡ Quick mode enabled! First to 100 points wins![/yellow]\n")
+    else:
+        game.target_score = target_score
+    game.play_game()
+
+
+@app.command()
+def rules():
+    """
+    📖 Display the game rules and instructions
+    """
+    rules_panel = Panel(
+        "[bold cyan]Caribbean Dominoes Rules[/bold cyan]\n\n"
+        "[bold]Setup:[/bold]\n"
+        "  • 4 players in 2 teams (You + Ally vs 2 Opponents)\n"
+        "  • Each player gets 7 dominoes from a double-six set\n"
+        "  • First round starts with the [6|6] domino\n\n"
+        "[bold]Gameplay:[/bold]\n"
+        "  • Players take turns counter-clockwise\n"
+        "  • Match your domino to either end of the line\n"
+        "  • If you can't play, you must pass\n"
+        "  • Round ends when someone plays all dominoes or all players pass\n\n"
+        "[bold]Scoring:[/bold]\n"
+        "  • Winner scores the sum of all remaining dominoes in other players' hands\n"
+        "  • If game is blocked, player with lowest hand value wins\n"
+        "  • First team to reach target score (default: 200) wins!\n\n"
+        "[bold]Controls:[/bold]\n"
+        "  • Use ↑↓ arrow keys to navigate menus\n"
+        "  • Press Enter to select\n"
+        "  • Also supports j/k for up/down (Vim-style)\n\n"
+        "[dim]Tip: Play high-value dominoes and doubles strategically![/dim]",
+        title="[bold yellow]🎲 How to Play 🎲[/bold yellow]",
+        border_style="cyan",
+        box=box.DOUBLE
+    )
+    console.print(rules_panel)
+
+
+@app.command()
+def about():
+    """
+    ℹ️  About Caribbean Dominoes CLI
+    """
+    about_panel = Panel(
+        "[bold cyan]Caribbean Dominoes CLI[/bold cyan]\n\n"
+        "A beautiful command-line interface for playing Caribbean-style dominoes.\n\n"
+        "[bold]Features:[/bold]\n"
+        "  ✨ Interactive arrow key navigation\n"
+        "  🎨 Colorful, rich terminal interface\n"
+        "  🤖 Smart CPU opponents\n"
+        "  👥 2v2 team-based gameplay\n"
+        "  📊 Real-time score tracking\n\n"
+        "[bold]Technology:[/bold]\n"
+        "  • Built with Python 3\n"
+        "  • Typer for CLI framework\n"
+        "  • Rich for beautiful output\n"
+        "  • InquirerPy for interactive menus\n\n"
+        "[dim]Version 2.0 - Enhanced Edition[/dim]",
+        title="[bold magenta]About[/bold magenta]",
+        border_style="magenta",
+        box=box.DOUBLE
+    )
+    console.print(about_panel)
 
 
 def main():
-    """Main entry point."""
-    game = Game()
-    game.play_game()
+    """Main entry point for the CLI."""
+    app()
 
 
 if __name__ == "__main__":
