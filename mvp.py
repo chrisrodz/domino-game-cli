@@ -13,11 +13,9 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.prompt import Confirm
+from rich.prompt import Confirm, IntPrompt
 from rich import box
 from rich.text import Text
-from InquirerPy import inquirer
-from InquirerPy.base.control import Choice
 
 # Initialize Rich console
 console = Console()
@@ -326,7 +324,7 @@ class Game:
         return True
 
     def get_human_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
-        """Get move from human player using arrow key navigation."""
+        """Get move from human player using numbered selection."""
         # Display your hand in a nice table
         hand_table = Table(title="[bold green]Your Hand[/bold green]", box=box.ROUNDED)
         hand_table.add_column("Domino", style="cyan", justify="center")
@@ -342,37 +340,27 @@ class Game:
         console.print(hand_table)
         console.print()
 
-        # Create choices for InquirerPy
-        choices = []
-        for domino, position in valid_moves:
-            # Create descriptive text for each move
+        # Display numbered list of valid moves
+        console.print("[bold cyan]Available moves:[/bold cyan]\n")
+        for i, (domino, position) in enumerate(valid_moves, 1):
             position_text = {
                 'first': '🎯 First move',
                 'left': '⬅️  Play on left',
                 'right': '➡️  Play on right'
             }.get(position, position)
 
-            choice_text = f"[{domino.to_rich()}] - {position_text} (value: {domino.value()})"
-            choices.append(Choice(value=(domino, position), name=choice_text))
+            console.print(f"  {i}. [{domino.to_rich()}] - {position_text} (value: {domino.value()})")
 
-        # Use InquirerPy for interactive selection
-        console.print("[bold cyan]Use ↑↓ arrow keys to navigate, Enter to select[/bold cyan]")
-        selected = inquirer.select(
-            message="Choose your move:",
-            choices=choices,
-            pointer="👉",
-            style={
-                "questionmark": "#e5c07b",
-                "pointer": "#61afef",
-                "highlighted": "#61afef bold",
-            },
-            vi_mode=True,  # Enable vim-like navigation (j/k)
-            keybindings={
-                "toggle": [{"key": "space"}],
-            }
-        ).execute()
+        console.print()
 
-        return selected
+        # Get user selection using IntPrompt
+        choice = IntPrompt.ask(
+            "Choose your move",
+            choices=[str(i) for i in range(1, len(valid_moves) + 1)],
+            show_choices=False
+        )
+
+        return valid_moves[choice - 1]
 
     def get_cpu_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
         """Simple CPU AI: prioritize high-value dominoes and doubles."""
@@ -608,8 +596,7 @@ def about():
         "[bold]Technology:[/bold]\n"
         "  • Built with Python 3\n"
         "  • Typer for CLI framework\n"
-        "  • Rich for beautiful output\n"
-        "  • InquirerPy for interactive menus\n\n"
+        "  • Rich for formatting and prompts\n\n"
         "[dim]Version 2.0 - Enhanced Edition[/dim]",
         title="[bold magenta]About[/bold magenta]",
         border_style="magenta",
