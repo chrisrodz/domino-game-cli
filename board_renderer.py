@@ -316,38 +316,38 @@ class GameRenderer:
             BoardDisplay.render_board(game.board, self.last_played_domino)
         )
 
-        # Update players
-        # Player 0: Human (bottom)
-        # Player 1: Opponent 1 (top)
-        # Player 2: Ally (left)
-        # Player 3: Opponent 2 (right)
+        # Update players - Counter-clockwise layout with alternating teams
+        # Player 0: Human (bottom) - Team 0
+        # Player 1: Opponent 1 (right) - Team 1
+        # Player 2: Ally (top) - Team 0
+        # Player 3: Opponent 2 (left) - Team 1
 
         current_idx = game.current_player_idx
         players = game.players
 
-        # Top player (Opponent 1 - index 1)
+        # Top player (Ally - index 2)
         self.layout["top_player"].update(
             PlayerDisplay.render_cpu_player(
-                players[1],
-                is_current=(current_idx == 1),
+                players[2],
+                is_current=(current_idx == 2),
                 position="top"
             )
         )
 
-        # Left player (Ally - index 2)
+        # Left player (Opponent 2 - index 3)
         self.layout["left_player"].update(
             PlayerDisplay.render_cpu_player(
-                players[2],
-                is_current=(current_idx == 2),
+                players[3],
+                is_current=(current_idx == 3),
                 position="left"
             )
         )
 
-        # Right player (Opponent 2 - index 3)
+        # Right player (Opponent 1 - index 1)
         self.layout["right_player"].update(
             PlayerDisplay.render_cpu_player(
-                players[3],
-                is_current=(current_idx == 3),
+                players[1],
+                is_current=(current_idx == 1),
                 position="right"
             )
         )

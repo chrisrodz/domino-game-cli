@@ -10,21 +10,24 @@ The Caribbean Domino Game CLI now features a full-screen, immersive board displa
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   OPPONENT 1 (←)                    │
+│                   ALLY (Team 1)                     │
 │                  [7 tiles remaining]                │
 ├─────────────────────────────────────────────────────┤
-│          │                              │           │
-│ ALLY (↑) │      DOMINO BOARD CENTER     │ OPP 2 (→) │
-│          │                              │           │
-│ 5 tiles  │   [3|5][5|2][2|6][6|4]      │  6 tiles  │
-│          │   Left: 3 | Right: 4         │           │
-│          │                              │           │
+│             │                        │              │
+│ OPPONENT 2  │  DOMINO BOARD CENTER   │  OPPONENT 1 │
+│  (Team 2)   │                        │   (Team 2)  │
+│             │                        │             │
+│  6 tiles    │  [3|5][5|2][2|6][6|4]  │   5 tiles   │
+│             │  Left: 3 | Right: 4    │             │
+│             │                        │             │
 ├─────────────────────────────────────────────────────┤
-│                  YOUR HAND (You)                    │
+│                  YOUR HAND (You - Team 1)           │
 │  [3|2]  [6|6]  [5|4]  [1|3]  [4|4]  [2|2]          │
 │                                                     │
 │  Valid Moves: 1. [3|2] Left  2. [5|4] Right        │
 └─────────────────────────────────────────────────────┘
+
+Counter-clockwise play order: You → Opponent 1 → Ally → Opponent 2 → You
 ```
 
 ### Key Components
@@ -34,11 +37,27 @@ The Caribbean Domino Game CLI now features a full-screen, immersive board displa
 - Team scores with progress to target score
 - Compact display at top of screen
 
-#### 2. **Player Positions**
-- **Top**: Opponent 1
-- **Left**: Ally (your partner)
-- **Right**: Opponent 2
-- **Bottom**: You (human player)
+#### 2. **Player Positions** (Counter-Clockwise Layout)
+- **Top**: Ally (your partner, Team 1)
+- **Right**: Opponent 1 (Team 2)
+- **Bottom**: You (human player, Team 1)
+- **Left**: Opponent 2 (Team 2)
+
+**Turn Flow (Counter-Clockwise):**
+```
+        ALLY ↑
+       (Team 1)
+           ↑
+           |
+OPP 2 ←────┼────→ OPP 1
+(Team 2)   |    (Team 2)
+           |
+           ↓
+         YOU
+       (Team 1)
+```
+
+This layout reflects the counter-clockwise turn order with alternating team members, exactly as in a real domino game.
 
 #### 3. **Board Display**
 - Centered domino chain
