@@ -37,12 +37,18 @@ class Domino:
     def __str__(self) -> str:
         return f"[{self.left}|{self.right}]"
 
-    def to_rich(self) -> str:
-        """Return a rich-formatted representation."""
+    def to_rich(self) -> Text:
+        """Return a rich-formatted representation with brackets."""
         colors = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'white']
         left_color = colors[self.left % len(colors)]
         right_color = colors[self.right % len(colors)]
-        return f"[bold {left_color}]{self.left}[/]|[bold {right_color}]{self.right}[/]"
+
+        text = Text("[")
+        text.append(str(self.left), style=f"bold {left_color}")
+        text.append("|")
+        text.append(str(self.right), style=f"bold {right_color}")
+        text.append("]")
+        return text
 
     def value(self) -> int:
         """Total value (sum of both sides)."""
@@ -135,11 +141,17 @@ class Board:
             return "Empty board"
         return " ".join(str(d) for d in self.dominoes)
 
-    def to_rich(self) -> str:
+    def to_rich(self) -> Text:
         """Return a rich-formatted representation of the board."""
         if self.is_empty():
-            return "[dim]Empty board[/dim]"
-        return " ".join(f"[{d.to_rich()}]" for d in self.dominoes)
+            return Text("Empty board", style="dim")
+
+        text = Text()
+        for i, d in enumerate(self.dominoes):
+            if i > 0:
+                text.append(" ")
+            text.append(d.to_rich())
+        return text
 
 
 class Player:
@@ -398,7 +410,13 @@ class Game:
                 self.board.play_domino(domino, on_left=False)
 
             player.remove_domino(domino)
-            console.print(f"\n[green]✓[/green] {player.name} played [{domino.to_rich()}] on the [bold]{position}[/bold]")
+            msg = Text("\n")
+            msg.append("✓", style="green")
+            msg.append(f" {player.name} played ")
+            msg.append(domino.to_rich())
+            msg.append(" on the ")
+            msg.append(position, style="bold")
+            console.print(msg)
 
             # Check if player went out
             if player.is_out():
@@ -419,7 +437,7 @@ class Game:
 
             sorted_hand = sorted(player.hand, key=lambda d: d.value())
             for domino in sorted_hand:
-                hand_table.add_row(f"[{domino.to_rich()}]", str(domino.value()))
+                hand_table.add_row(domino.to_rich(), str(domino.value()))
 
             hand_table.add_row("", "", end_section=True)
             hand_table.add_row("[bold]Total[/bold]", f"[bold]{player.hand_value()}[/bold]")
@@ -436,7 +454,10 @@ class Game:
                     'right': '➡️  Play on right'
                 }.get(position, position)
 
-                console.print(f"  {i}. [{domino.to_rich()}] - {position_text} (value: {domino.value()})")
+                move_text = Text(f"  {i}. ")
+                move_text.append(domino.to_rich())
+                move_text.append(f" - {position_text} (value: {domino.value()})")
+                console.print(move_text)
 
             console.print()
 
