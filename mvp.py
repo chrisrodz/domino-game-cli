@@ -288,10 +288,7 @@ class Game:
             self.renderer.refresh()
 
             if player.player_type == PlayerType.HUMAN:
-                # Temporarily stop live display for input
-                self.renderer.stop_live_display()
-                Confirm.ask("\nPress Enter to continue", default=True)
-                self.renderer.start_live_display()
+                self.renderer.prompt_confirmation(self, "You must pass - no valid moves available.")
 
             import time
             time.sleep(1.0)  # Pause so CPU passes are visible
@@ -313,10 +310,7 @@ class Game:
         self.renderer.refresh()
 
         if player.player_type == PlayerType.HUMAN:
-            # Stop live display for input
-            self.renderer.stop_live_display()
             chosen_move = self.get_human_move(player, valid_moves)
-            self.renderer.start_live_display()
         else:
             chosen_move = self.get_cpu_move(player, valid_moves)
 
@@ -446,12 +440,25 @@ class Game:
 
             console.print()
 
-        # Get user selection using IntPrompt (works in both modes)
-        choice = IntPrompt.ask(
-            "Choose your move (enter number)",
-            choices=[str(i) for i in range(1, len(valid_moves) + 1)],
-            show_choices=False
-        )
+        # Get user selection
+        if self.use_full_screen:
+            # Use renderer's prompt method to keep display active
+            valid_choices = [str(i) for i in range(1, len(valid_moves) + 1)]
+            prompt_text = f"Choose your move (enter number 1-{len(valid_moves)})"
+            choice_str = self.renderer.prompt_user_input(
+                self,
+                prompt_text,
+                valid_moves=valid_moves,
+                valid_choices=valid_choices
+            )
+            choice = int(choice_str)
+        else:
+            # Use IntPrompt for non-full-screen mode
+            choice = IntPrompt.ask(
+                "Choose your move (enter number)",
+                choices=[str(i) for i in range(1, len(valid_moves) + 1)],
+                show_choices=False
+            )
 
         return valid_moves[choice - 1]
 

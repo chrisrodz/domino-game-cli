@@ -245,6 +245,7 @@ class GameRenderer:
         layout.split_column(
             Layout(name="header", size=3),
             Layout(name="main", ratio=1),
+            Layout(name="input_area", size=3),
             Layout(name="footer", size=1)
         )
 
@@ -283,6 +284,20 @@ class GameRenderer:
 
         return Panel(Align.center(header_text), border_style="cyan", box=ROUNDED)
 
+    def render_input_area(self, prompt_text: str = "") -> Panel:
+        """Render the input area for user prompts."""
+        if prompt_text:
+            content = Text(prompt_text, style="bold yellow", justify="left")
+        else:
+            content = Text("", style="dim")
+
+        return Panel(
+            content,
+            border_style="yellow" if prompt_text else "dim",
+            box=ROUNDED,
+            padding=(0, 1)
+        )
+
     def render_footer(self, message: str = "") -> Text:
         """Render the footer with status messages."""
         if message:
@@ -293,7 +308,8 @@ class GameRenderer:
         self,
         game,
         valid_moves: Optional[List[Tuple]] = None,
-        status_message: str = ""
+        status_message: str = "",
+        prompt_text: str = ""
     ):
         """
         Update the entire display with current game state.
@@ -302,6 +318,7 @@ class GameRenderer:
             game: The Game object with current state
             valid_moves: Valid moves for human player (if their turn)
             status_message: Status message for footer
+            prompt_text: Text to display in input area
         """
         if not self.layout:
             self.layout = self.create_layout()
@@ -361,6 +378,9 @@ class GameRenderer:
             )
         )
 
+        # Update input area
+        self.layout["input_area"].update(self.render_input_area(prompt_text))
+
         # Update footer
         self.layout["footer"].update(self.render_footer(status_message))
 
@@ -399,3 +419,73 @@ class GameRenderer:
     def pause_for_effect(self, seconds: float = 0.8):
         """Pause briefly for visual effect after tile placement."""
         time.sleep(seconds)
+
+    def prompt_user_input(
+        self,
+        game,
+        prompt_text: str,
+        valid_moves: Optional[List[Tuple]] = None,
+        valid_choices: Optional[List[str]] = None
+    ) -> str:
+        """
+        Prompt user for input while keeping the live display running.
+
+        Args:
+            game: The Game object
+            prompt_text: Text to show in the prompt area
+            valid_moves: Valid moves to display (if applicable)
+            valid_choices: List of valid input choices (e.g., ["1", "2", "3"])
+
+        Returns:
+            The user's input as a string
+        """
+        # Update display with prompt
+        self.update_display(game, valid_moves=valid_moves, prompt_text=prompt_text)
+        self.refresh()
+
+        # Get input using console.input which works with Live display
+        while True:
+            try:
+                user_input = self.console.input("> ").strip()
+
+                # Validate input if choices provided
+                if valid_choices and user_input not in valid_choices:
+                    error_prompt = f"{prompt_text}\n[red]Invalid choice. Please enter one of: {', '.join(valid_choices)}[/red]"
+                    self.update_display(game, valid_moves=valid_moves, prompt_text=error_prompt)
+                    self.refresh()
+                    continue
+
+                # Clear the prompt after successful input
+                self.update_display(game, valid_moves=valid_moves, prompt_text="")
+                self.refresh()
+
+                return user_input
+
+            except (KeyboardInterrupt, EOFError):
+                raise
+
+    def prompt_confirmation(self, game, message: str) -> bool:
+        """
+        Prompt user for confirmation while keeping display running.
+
+        Args:
+            game: The Game object
+            message: Message to display
+
+        Returns:
+            True (always, since we just need them to press Enter)
+        """
+        prompt_text = f"{message} [Press Enter to continue]"
+        self.update_display(game, prompt_text=prompt_text)
+        self.refresh()
+
+        try:
+            self.console.input()
+        except (KeyboardInterrupt, EOFError):
+            raise
+
+        # Clear prompt
+        self.update_display(game, prompt_text="")
+        self.refresh()
+
+        return True
