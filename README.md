@@ -14,7 +14,7 @@ A beautiful, interactive CLI application to play Caribbean dominoes and learn ho
 - **🎯 Multiple Game Modes**: Standard and quick play modes
 - **📖 Built-in Rules**: Access game rules and help anytime
 
-## 🚀 Installation
+## 🚀 Setup
 
 1. Clone the repository:
 ```bash
@@ -22,67 +22,39 @@ git clone <repository-url>
 cd domino-game-cli
 ```
 
-2. Install the package:
-```bash
-pip install -e .
-```
-
-Or using uv:
+2. Install dependencies:
 ```bash
 uv sync
 ```
 
-3. Activate the virtual environment (if using uv):
-```bash
-# On macOS/Linux
-source .venv/bin/activate
-
-# On Windows
-.venv\Scripts\activate
-```
-
-**Or** skip activation and use `uv run` to run commands (see Usage below).
+That's it! Use `uv run python main.py` to start playing (see Usage below).
 
 ## 🎮 Usage
 
 ### Start a Game
 
-**Option A - With activated virtual environment:**
 ```bash
 # Play with default settings (first to 200 points)
-domino play
+uv run python main.py play
 
 # Quick mode (first to 100 points)
-domino play --quick
+uv run python main.py play --quick
 
 # Custom target score
-domino play --target 150
-
-# Or use the main.py entry point
-python main.py play
-```
-
-**Option B - Without activating (using uv run):**
-
-```bash
-# Play with default settings
-uv run domino play
-
-# Or using main.py
-uv run python main.py play
+uv run python main.py play --target 150
 ```
 
 ### View Commands
 
 ```bash
 # Show all available commands
-domino --help
+uv run python main.py --help
 
 # View game rules
-domino rules
+uv run python main.py rules
 
 # About the game
-domino about
+uv run python main.py about
 ```
 
 ## 🎯 Game Controls

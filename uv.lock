@@ -274,7 +274,7 @@ toml = [
 [[package]]
 name = "domino-game-cli"
 version = "2.0.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "rich" },
     { name = "typer" },
@@ -293,7 +293,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "rich", specifier = ">=13.7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "typer", extras = ["all"], specifier = ">=0.9.0" },
+    { name = "typer", specifier = ">=0.9.0" },
 ]
 provides-extras = ["dev"]
 
