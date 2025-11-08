@@ -135,28 +135,37 @@ domino-game-cli/
 
 ## 🧪 Testing
 
-Run all tests using the test runner:
+Install dev dependencies first:
 
 ```bash
-python run_tests.py
+uv sync --extra dev
 ```
 
-Or run individual test modules:
+Run all tests with pytest:
 
 ```bash
-# Test models
-python tests/test_models/test_domino.py
-python tests/test_models/test_board.py
-python tests/test_models/test_player.py
+uv run pytest                    # Run all tests
+uv run pytest -v                 # Verbose output
+uv run pytest -m "not slow"      # Skip slow tests
+```
 
-# Test game logic
-python tests/test_game/test_deck.py
-python tests/test_game/test_ai.py
-python tests/test_game/test_engine.py
-python tests/test_game/test_scoring.py
+Run specific tests:
 
-# Test UI
-python tests/test_ui/test_renderer.py
+```bash
+# Test specific directory
+uv run pytest tests/test_game/
+
+# Test specific file
+uv run pytest tests/test_models/test_domino.py
+
+# Test specific function
+uv run pytest tests/test_game/test_ai.py::test_simple_strategy
+```
+
+Run with coverage:
+
+```bash
+uv run pytest --cov=domino_game --cov-report=term-missing
 ```
 
 Continuous Integration runs automatically on:
