@@ -22,8 +22,9 @@ def calculate_round_score(players: list, board, last_player_to_move=None) -> tup
     # Check if someone went out
     for player in players:
         if player.is_out():
-            # Player went out - count all other players' points
-            points = sum(p.hand_value() for p in players if p != player)
+            # Player went out - they have no tiles (hand_value = 0)
+            # Sum all remaining tiles (winner contributes 0)
+            points = sum(p.hand_value() for p in players)
             return (player.team, points)
 
     # Game is blocked - find all players with lowest hand value
@@ -55,8 +56,9 @@ def calculate_round_score(players: list, board, last_player_to_move=None) -> tup
                 winner = tied_players[0]
             is_draw = True
 
-    # Point calculation: In draw scenarios, include ALL tiles (including winner's)
-    # When someone goes out normally, exclude their tiles (handled above)
+    # Point calculation for blocked games:
+    # - Draw scenario: Sum ALL tiles (winner still has tiles, they count)
+    # - No draw: Sum all tiles EXCEPT winner's (winner still has tiles, they don't count)
     if is_draw:
         points = sum(p.hand_value() for p in players)
     else:
