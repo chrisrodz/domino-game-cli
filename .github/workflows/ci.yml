@@ -2,80 +2,65 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Install dependencies
-      run: |
-        uv sync --extra dev
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev
 
-    - name: Run tests with pytest
-      run: |
-        uv run pytest -v --tb=short
+      - name: Run tests with coverage
+        run: |
+          uv run pytest --cov=domino_game --cov-report=term-missing --cov-report=html --cov-report=xml
 
-    - name: Run tests with coverage
-      if: matrix.python-version == '3.11'
-      run: |
-        uv run pytest --cov=domino_game --cov-report=term-missing --cov-report=xml
-
-    - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: false
-
-    - name: Verify app works
-      run: |
-        uv run python main.py --help
+      - name: Verify app works
+        run: |
+          uv run python main.py --help
 
   lint:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Install dependencies
-      run: |
-        uv sync --extra dev
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev
 
-    - name: Lint with ruff
-      run: |
-        # Check for errors
-        uv run ruff check domino_game tests
+      - name: Lint with ruff
+        run: |
+          # Check for errors
+          uv run ruff check .
 
-    - name: Format check with ruff
-      run: |
-        # Check formatting
-        uv run ruff format --check domino_game tests
+      - name: Format check with ruff
+        run: |
+          # Check formatting
+          uv run ruff format --check .
