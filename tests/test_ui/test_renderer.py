@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Quick test of the board renderer."""
 
-from mvp import Game, Domino
-from board_renderer import GameRenderer
+from domino_game.game.engine import Game
+from domino_game.models import Domino
+from domino_game.ui.renderer.game_renderer import GameRenderer
 from rich.console import Console
 import time
+
 
 def test_renderer():
     """Test the full-screen renderer with a sample game state."""
@@ -57,6 +59,7 @@ def test_renderer():
         renderer.stop_live_display()
 
     console.print("[green]✓ Renderer test completed successfully![/green]")
+
 
 if __name__ == "__main__":
     test_renderer()
