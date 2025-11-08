@@ -1,5 +1,7 @@
 # 🎲 Caribbean Dominoes CLI
 
+![CI](https://github.com/chrisrodz/domino-game-cli/workflows/CI/badge.svg)
+
 A beautiful, interactive CLI application to play Caribbean dominoes and learn how to get better so you can beat your friends IRL!
 
 ## ✨ Features
@@ -20,13 +22,17 @@ git clone <repository-url>
 cd domino-game-cli
 ```
 
-1. Install dependencies:
+2. Install the package:
+```bash
+pip install -e .
+```
 
+Or using uv:
 ```bash
 uv sync
 ```
 
-1. Activate the virtual environment:
+3. Activate the virtual environment (if using uv):
 ```bash
 # On macOS/Linux
 source .venv/bin/activate
@@ -44,39 +50,39 @@ source .venv/bin/activate
 **Option A - With activated virtual environment:**
 ```bash
 # Play with default settings (first to 200 points)
-python mvp.py play
+domino play
 
 # Quick mode (first to 100 points)
-python mvp.py play --quick
+domino play --quick
 
 # Custom target score
-python mvp.py play --target 150
+domino play --target 150
 
-# Or use the installed CLI command
-domino play
+# Or use the main.py entry point
+python main.py play
 ```
 
 **Option B - Without activating (using uv run):**
 
 ```bash
 # Play with default settings
-uv run python mvp.py play
-
-# Or use the installed CLI command
 uv run domino play
+
+# Or using main.py
+uv run python main.py play
 ```
 
 ### View Commands
 
 ```bash
 # Show all available commands
-python3 mvp.py --help
+domino --help
 
 # View game rules
-python3 mvp.py rules
+domino rules
 
 # About the game
-python3 mvp.py about
+domino about
 ```
 
 ## 🎯 Game Controls
@@ -105,10 +111,59 @@ python3 mvp.py about
 
 ## 🛠️ Technology Stack
 
-- **Python 3**: Core language
+- **Python 3.9+**: Core language
 - **Typer**: CLI framework with rich help formatting
 - **Rich**: Beautiful terminal output with colors and formatting
-- **InquirerPy**: Interactive prompts with arrow key navigation
+
+## 📁 Project Structure
+
+```
+domino-game-cli/
+├── domino_game/              # Main package
+│   ├── models/               # Domain models (Domino, Board, Player)
+│   ├── game/                 # Game engine & logic (AI, scoring, deck)
+│   ├── ui/                   # User interface components
+│   │   └── renderer/         # Full-screen rendering
+│   └── cli.py               # CLI commands
+├── tests/                    # Organized test suite
+│   ├── test_models/
+│   ├── test_game/
+│   └── test_ui/
+├── main.py                   # Entry point
+└── pyproject.toml           # Project configuration
+```
+
+## 🧪 Testing
+
+Run all tests using the test runner:
+
+```bash
+python run_tests.py
+```
+
+Or run individual test modules:
+
+```bash
+# Test models
+python tests/test_models/test_domino.py
+python tests/test_models/test_board.py
+python tests/test_models/test_player.py
+
+# Test game logic
+python tests/test_game/test_deck.py
+python tests/test_game/test_ai.py
+python tests/test_game/test_engine.py
+python tests/test_game/test_scoring.py
+
+# Test UI
+python tests/test_ui/test_renderer.py
+```
+
+Continuous Integration runs automatically on:
+- Pull requests to `main`
+- Pushes to `main` branch
+
+The CI tests the package on Python 3.9, 3.10, 3.11, and 3.12.
 
 ## 📝 Commands Reference
 
