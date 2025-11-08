@@ -1,7 +1,9 @@
 """Board model for managing the domino line."""
 
-from typing import List, Optional
+from typing import Optional
+
 from rich.text import Text
+
 from domino_game.models.domino import Domino
 
 
@@ -9,7 +11,7 @@ class Board:
     """Manages the domino line on the table."""
 
     def __init__(self):
-        self.dominoes: List[Domino] = []
+        self.dominoes: list[Domino] = []
 
     def is_empty(self) -> bool:
         return len(self.dominoes) == 0

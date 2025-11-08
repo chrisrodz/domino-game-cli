@@ -1,7 +1,7 @@
 """Player model and player type enum."""
 
-from typing import List, Tuple
 from enum import Enum
+
 from domino_game.models.domino import Domino
 
 
@@ -17,7 +17,7 @@ class Player:
         self.name = name
         self.player_type = player_type
         self.team = team  # 0 or 1
-        self.hand: List[Domino] = []
+        self.hand: list[Domino] = []
         self.passed_last_turn = False
 
     def add_domino(self, domino: Domino):
@@ -44,7 +44,7 @@ class Player:
         """Check if player has played all dominoes."""
         return len(self.hand) == 0
 
-    def get_valid_moves(self, board) -> List[Tuple[Domino, str]]:
+    def get_valid_moves(self, board) -> list[tuple[Domino, str]]:
         """
         Get all valid moves for this player.
         Returns list of (domino, position) where position is 'left' or 'right'.
@@ -52,8 +52,8 @@ class Player:
         if board.is_empty():
             # First move must be double-six if available
             if self.has_double_six():
-                return [(Domino(6, 6), 'first')]
-            return [(self.hand[0], 'first')] if self.hand else []
+                return [(Domino(6, 6), "first")]
+            return [(self.hand[0], "first")] if self.hand else []
 
         moves = []
         left = board.left_value()
@@ -61,13 +61,13 @@ class Player:
 
         for domino in self.hand:
             if domino.has_value(left):
-                moves.append((domino, 'left'))
+                moves.append((domino, "left"))
             if domino.has_value(right) and left != right:
-                moves.append((domino, 'right'))
+                moves.append((domino, "right"))
             elif domino.has_value(right) and left == right:
                 # Avoid duplicates when both ends are the same
-                if not any(m[0] == domino and m[1] == 'left' for m in moves):
-                    moves.append((domino, 'right'))
+                if not any(m[0] == domino and m[1] == "left" for m in moves):
+                    moves.append((domino, "right"))
 
         return moves
 

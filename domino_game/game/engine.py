@@ -1,19 +1,19 @@
 """Game orchestration engine."""
 
 import time
-from typing import List, Optional, Tuple
+from typing import Optional
+
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.prompt import Confirm, IntPrompt
+from rich.table import Table
 from rich.text import Text
-from rich import box
 
-from domino_game.models import Board, Player, PlayerType, Domino
-from domino_game.game.deck import create_deck, shuffle_deck
 from domino_game.game.ai import SimpleStrategy
+from domino_game.game.deck import create_deck, shuffle_deck
 from domino_game.game.scoring import calculate_round_score
-
+from domino_game.models import Board, Domino, Player, PlayerType
 
 console = Console()
 
@@ -22,7 +22,7 @@ class Game:
     """Orchestrates the domino game."""
 
     def __init__(self):
-        self.players: List[Player] = []
+        self.players: list[Player] = []
         self.board = Board()
         self.current_player_idx = 0
         self.team_scores = [0, 0]  # Team 0 and Team 1
@@ -39,7 +39,7 @@ class Game:
             Player("You", PlayerType.HUMAN, 0),
             Player("Opponent 1", PlayerType.CPU, 1),
             Player("Ally", PlayerType.CPU, 0),
-            Player("Opponent 2", PlayerType.CPU, 1)
+            Player("Opponent 2", PlayerType.CPU, 1),
         ]
 
     def deal_dominoes(self):
@@ -50,7 +50,7 @@ class Game:
         for player in self.players:
             player.hand = []
 
-        for i in range(7):
+        for _i in range(7):
             for player in self.players:
                 player.add_domino(deck.pop())
 
@@ -120,9 +120,9 @@ class Game:
             domino, position = chosen_move
 
             # Play the domino
-            if position == 'first':
+            if position == "first":
                 self.board.play_domino(domino)
-            elif position == 'left':
+            elif position == "left":
                 self.board.play_domino(domino, on_left=True)
             else:  # right
                 self.board.play_domino(domino, on_left=False)
@@ -161,7 +161,7 @@ class Game:
             self.board.to_rich(),
             title="[bold yellow]Board[/bold yellow]",
             subtitle=f"[dim]Left: [{self.board.left_value()}] | Right: [{self.board.right_value()}][/dim]",
-            border_style="yellow"
+            border_style="yellow",
         )
         console.print(board_panel)
 
@@ -192,9 +192,9 @@ class Game:
             domino, position = chosen_move
 
             # Play the domino
-            if position == 'first':
+            if position == "first":
                 self.board.play_domino(domino)
-            elif position == 'left':
+            elif position == "left":
                 self.board.play_domino(domino, on_left=True)
             else:  # right
                 self.board.play_domino(domino, on_left=False)
@@ -217,7 +217,7 @@ class Game:
 
         return True
 
-    def get_human_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
+    def get_human_move(self, player: Player, valid_moves: list[tuple[Domino, str]]) -> Optional[tuple[Domino, str]]:
         """Get move from human player using numbered selection."""
         if not self.use_full_screen:
             # Legacy mode - display everything
@@ -238,11 +238,9 @@ class Game:
             # Display numbered list of valid moves
             console.print("[bold cyan]Available moves:[/bold cyan]\n")
             for i, (domino, position) in enumerate(valid_moves, 1):
-                position_text = {
-                    'first': '🎯 First move',
-                    'left': '⬅️  Play on left',
-                    'right': '➡️  Play on right'
-                }.get(position, position)
+                position_text = {"first": "🎯 First move", "left": "⬅️  Play on left", "right": "➡️  Play on right"}.get(
+                    position, position
+                )
 
                 move_text = Text(f"  {i}. ")
                 move_text.append(domino.to_rich())
@@ -257,23 +255,18 @@ class Game:
             valid_choices = [str(i) for i in range(1, len(valid_moves) + 1)]
             prompt_text = f"Choose your move (enter number 1-{len(valid_moves)})"
             choice_str = self.renderer.prompt_user_input(
-                self,
-                prompt_text,
-                valid_moves=valid_moves,
-                valid_choices=valid_choices
+                self, prompt_text, valid_moves=valid_moves, valid_choices=valid_choices
             )
             choice = int(choice_str)
         else:
             # Use IntPrompt for non-full-screen mode
             choice = IntPrompt.ask(
-                "Choose your move (enter number)",
-                choices=[str(i) for i in range(1, len(valid_moves) + 1)],
-                show_choices=False
+                "Choose your move (enter number)", choices=[str(i) for i in range(1, len(valid_moves) + 1)], show_choices=False
             )
 
         return valid_moves[choice - 1]
 
-    def get_cpu_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
+    def get_cpu_move(self, player: Player, valid_moves: list[tuple[Domino, str]]) -> Optional[tuple[Domino, str]]:
         """Get CPU move using the configured strategy."""
         if not self.use_full_screen:
             console.print(f"\n[yellow]🤔 {player.name} is thinking...[/yellow]")
@@ -331,7 +324,7 @@ class Game:
             f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
             f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points",
             title=f"[bold]Round {self.round_number} Results[/bold]",
-            border_style="green"
+            border_style="green",
         )
         console.print(result_panel)
 
@@ -349,8 +342,8 @@ class Game:
         score_table = Table(box=box.DOUBLE_EDGE, show_header=False)
         score_table.add_column("Team", style="cyan bold", justify="center")
         score_table.add_column("Score", style="yellow bold", justify="center")
-        score_table.add_row(f"Team 1 (You & Ally)", f"{self.team_scores[0]} pts")
-        score_table.add_row(f"Team 2 (Opponents)", f"{self.team_scores[1]} pts")
+        score_table.add_row("Team 1 (You & Ally)", f"{self.team_scores[0]} pts")
+        score_table.add_row("Team 2 (Opponents)", f"{self.team_scores[1]} pts")
         console.print(score_table, justify="center")
 
         self.board = Board()
@@ -387,7 +380,7 @@ class Game:
             f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
             f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points",
             title=f"[bold]Round {self.round_number} Results[/bold]",
-            border_style="green"
+            border_style="green",
         )
         console.print(result_panel)
 
@@ -418,7 +411,7 @@ class Game:
             f"[dim]Full-screen board display enabled - press Ctrl+C to quit[/dim]",
             title=welcome_text,
             border_style="cyan",
-            box=box.DOUBLE
+            box=box.DOUBLE,
         )
 
         console.print(welcome_panel)
@@ -429,6 +422,7 @@ class Game:
         # Initialize renderer for full-screen mode
         if self.use_full_screen:
             from domino_game.ui.renderer.game_renderer import GameRenderer
+
             self.renderer = GameRenderer(console)
             self.renderer.start_live_display()
 
@@ -456,6 +450,6 @@ class Game:
             f"{'[green]Congratulations! 🎉[/green]' if winning_team == 0 else '[red]Better luck next time! 💪[/red]'}",
             title="[bold]Game Results[/bold]",
             border_style="yellow",
-            box=box.DOUBLE
+            box=box.DOUBLE,
         )
         console.print(game_over_panel)

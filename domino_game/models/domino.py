@@ -1,12 +1,14 @@
 """Domino tile model."""
 
 from dataclasses import dataclass
+
 from rich.text import Text
 
 
 @dataclass
 class Domino:
     """Represents a single domino tile."""
+
     left: int
     right: int
 
@@ -15,7 +17,7 @@ class Domino:
 
     def to_rich(self) -> Text:
         """Return a rich-formatted representation with brackets."""
-        colors = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'white']
+        colors = ["red", "green", "blue", "yellow", "magenta", "cyan", "white"]
         left_color = colors[self.left % len(colors)]
         right_color = colors[self.right % len(colors)]
 
@@ -38,15 +40,16 @@ class Domino:
         """Check if either side matches the given value."""
         return self.left == value or self.right == value
 
-    def flip(self) -> 'Domino':
+    def flip(self) -> "Domino":
         """Return a flipped version of this domino."""
         return Domino(self.right, self.left)
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Domino):
             return False
-        return (self.left == other.left and self.right == other.right) or \
-               (self.left == other.right and self.right == other.left)
+        return (self.left == other.left and self.right == other.right) or (
+            self.left == other.right and self.right == other.left
+        )
 
     def __hash__(self) -> int:
         return hash((min(self.left, self.right), max(self.left, self.right)))

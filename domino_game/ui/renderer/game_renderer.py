@@ -1,14 +1,15 @@
 """Main game renderer for full-screen display."""
 
 import time
-from typing import List, Tuple, Optional
-from rich.console import Console
-from rich.layout import Layout
-from rich.panel import Panel
-from rich.text import Text
-from rich.live import Live
+from typing import Optional
+
 from rich.align import Align
 from rich.box import ROUNDED
+from rich.console import Console
+from rich.layout import Layout
+from rich.live import Live
+from rich.panel import Panel
+from rich.text import Text
 
 from domino_game.ui.renderer.board_display import BoardDisplay
 from domino_game.ui.renderer.player_display import PlayerDisplay
@@ -33,26 +34,22 @@ class GameRenderer:
             Layout(name="header", size=3),
             Layout(name="main", ratio=1),
             Layout(name="input_area", size=3),
-            Layout(name="footer", size=1)
+            Layout(name="footer", size=1),
         )
 
         # Split main section into three rows
         layout["main"].split_column(
-            Layout(name="top_player", size=7),
-            Layout(name="middle", ratio=1),
-            Layout(name="human_player", size=12)
+            Layout(name="top_player", size=7), Layout(name="middle", ratio=1), Layout(name="human_player", size=12)
         )
 
         # Split middle section into three columns
         layout["middle"].split_row(
-            Layout(name="left_player", ratio=1),
-            Layout(name="board", ratio=2),
-            Layout(name="right_player", ratio=1)
+            Layout(name="left_player", ratio=1), Layout(name="board", ratio=2), Layout(name="right_player", ratio=1)
         )
 
         return layout
 
-    def render_header(self, round_number: int, team_scores: List[int], target_score: int) -> Panel:
+    def render_header(self, round_number: int, team_scores: list[int], target_score: int) -> Panel:
         """Render the game header with scores and round info."""
         header_text = Text()
 
@@ -78,12 +75,7 @@ class GameRenderer:
         else:
             content = Text("", style="dim")
 
-        return Panel(
-            content,
-            border_style="yellow" if prompt_text else "dim",
-            box=ROUNDED,
-            padding=(0, 1)
-        )
+        return Panel(content, border_style="yellow" if prompt_text else "dim", box=ROUNDED, padding=(0, 1))
 
     def render_footer(self, message: str = "") -> Text:
         """Render the footer with status messages."""
@@ -91,13 +83,7 @@ class GameRenderer:
             return Text(message, style="dim italic", justify="center")
         return Text("Caribbean Dominoes - Press Ctrl+C to quit", style="dim", justify="center")
 
-    def update_display(
-        self,
-        game,
-        valid_moves: Optional[List[Tuple]] = None,
-        status_message: str = "",
-        prompt_text: str = ""
-    ):
+    def update_display(self, game, valid_moves: Optional[list[tuple]] = None, status_message: str = "", prompt_text: str = ""):
         """
         Update the entire display with current game state.
 
@@ -111,14 +97,10 @@ class GameRenderer:
             self.layout = self.create_layout()
 
         # Update header
-        self.layout["header"].update(
-            self.render_header(game.round_number, game.team_scores, game.target_score)
-        )
+        self.layout["header"].update(self.render_header(game.round_number, game.team_scores, game.target_score))
 
         # Update board
-        self.layout["board"].update(
-            BoardDisplay.render_board(game.board, self.last_played_domino)
-        )
+        self.layout["board"].update(BoardDisplay.render_board(game.board, self.last_played_domino))
 
         # Update players - Counter-clockwise layout with alternating teams
         # Player 0: Human (bottom) - Team 0
@@ -131,38 +113,22 @@ class GameRenderer:
 
         # Top player (Ally - index 2)
         self.layout["top_player"].update(
-            PlayerDisplay.render_cpu_player(
-                players[2],
-                is_current=(current_idx == 2),
-                position="top"
-            )
+            PlayerDisplay.render_cpu_player(players[2], is_current=(current_idx == 2), position="top")
         )
 
         # Left player (Opponent 2 - index 3)
         self.layout["left_player"].update(
-            PlayerDisplay.render_cpu_player(
-                players[3],
-                is_current=(current_idx == 3),
-                position="left"
-            )
+            PlayerDisplay.render_cpu_player(players[3], is_current=(current_idx == 3), position="left")
         )
 
         # Right player (Opponent 1 - index 1)
         self.layout["right_player"].update(
-            PlayerDisplay.render_cpu_player(
-                players[1],
-                is_current=(current_idx == 1),
-                position="right"
-            )
+            PlayerDisplay.render_cpu_player(players[1], is_current=(current_idx == 1), position="right")
         )
 
         # Bottom player (Human - index 0)
         self.layout["human_player"].update(
-            PlayerDisplay.render_human_player(
-                players[0],
-                valid_moves or [],
-                is_current=(current_idx == 0)
-            )
+            PlayerDisplay.render_human_player(players[0], valid_moves or [], is_current=(current_idx == 0))
         )
 
         # Update input area
@@ -176,12 +142,7 @@ class GameRenderer:
         if not self.layout:
             self.layout = self.create_layout()
 
-        self.live = Live(
-            self.layout,
-            console=self.console,
-            screen=True,
-            auto_refresh=False
-        )
+        self.live = Live(self.layout, console=self.console, screen=True, auto_refresh=False)
         self.live.start()
 
     def stop_live_display(self):
@@ -208,11 +169,7 @@ class GameRenderer:
         time.sleep(seconds)
 
     def prompt_user_input(
-        self,
-        game,
-        prompt_text: str,
-        valid_moves: Optional[List[Tuple]] = None,
-        valid_choices: Optional[List[str]] = None
+        self, game, prompt_text: str, valid_moves: Optional[list[tuple]] = None, valid_choices: Optional[list[str]] = None
     ) -> str:
         """
         Prompt user for input while keeping the live display running.

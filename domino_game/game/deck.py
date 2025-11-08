@@ -1,11 +1,11 @@
 """Deck creation and dealing utilities."""
 
 import random
-from typing import List
+
 from domino_game.models.domino import Domino
 
 
-def create_deck() -> List[Domino]:
+def create_deck() -> list[Domino]:
     """Create a full double-six domino set (28 tiles)."""
     deck = []
     for i in range(7):
@@ -14,6 +14,6 @@ def create_deck() -> List[Domino]:
     return deck
 
 
-def shuffle_deck(deck: List[Domino]) -> None:
+def shuffle_deck(deck: list[Domino]) -> None:
     """Shuffle a deck of dominoes in place."""
     random.shuffle(deck)

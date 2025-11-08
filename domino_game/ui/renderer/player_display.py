@@ -1,23 +1,18 @@
 """Player display rendering."""
 
-from typing import List, Tuple
+from rich.align import Align
+from rich.box import HEAVY, ROUNDED
+from rich.console import Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.align import Align
-from rich.box import ROUNDED, HEAVY
-from rich.console import Group
 
 
 class PlayerDisplay:
     """Renders player information around the table."""
 
     @staticmethod
-    def render_cpu_player(
-        player,
-        is_current: bool = False,
-        position: str = "top"
-    ) -> Panel:
+    def render_cpu_player(player, is_current: bool = False, position: str = "top") -> Panel:
         """
         Render a CPU player with tile count indicator.
 
@@ -42,8 +37,9 @@ class PlayerDisplay:
         # Tile information
         tile_text = Text()
         tile_text.append(card_backs, style="")
-        tile_text.append(f"\n{tile_count} tile{'s' if tile_count != 1 else ''} remaining",
-                        style="bold yellow" if is_current else "dim")
+        tile_text.append(
+            f"\n{tile_count} tile{'s' if tile_count != 1 else ''} remaining", style="bold yellow" if is_current else "dim"
+        )
 
         # Add pass indicator if they passed last turn
         if player.passed_last_turn:
@@ -65,20 +61,10 @@ class PlayerDisplay:
             box = ROUNDED
             title = player.name
 
-        return Panel(
-            Align.center(content),
-            title=title,
-            border_style=border_style,
-            box=box,
-            padding=(0, 1)
-        )
+        return Panel(Align.center(content), title=title, border_style=border_style, box=box, padding=(0, 1))
 
     @staticmethod
-    def render_human_player(
-        player,
-        valid_moves: List[Tuple],
-        is_current: bool = False
-    ) -> Panel:
+    def render_human_player(player, valid_moves: list[tuple], is_current: bool = False) -> Panel:
         """
         Render the human player with their actual hand visible.
 
@@ -96,10 +82,7 @@ class PlayerDisplay:
         hand_table.add_column("Value", justify="center", style="yellow")
 
         for domino in player.hand:
-            hand_table.add_row(
-                domino.to_rich(),
-                str(domino.value())
-            )
+            hand_table.add_row(domino.to_rich(), str(domino.value()))
 
         # Create content
         content_parts = [hand_table]
@@ -135,16 +118,10 @@ class PlayerDisplay:
         if is_current:
             border_style = "bold green"
             box = HEAVY
-            title = f"▶ YOUR TURN ◀"
+            title = "▶ YOUR TURN ◀"
         else:
             border_style = "blue"
             box = ROUNDED
             title = f"{player.name} (Team {player.team + 1})"
 
-        return Panel(
-            content_group,
-            title=title,
-            border_style=border_style,
-            box=box,
-            padding=(1, 2)
-        )
+        return Panel(content_group, title=title, border_style=border_style, box=box, padding=(1, 2))

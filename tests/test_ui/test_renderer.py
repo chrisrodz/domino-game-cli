@@ -1,13 +1,16 @@
-#!/usr/bin/env python3
-"""Quick test of the board renderer."""
+"""Tests for the board renderer."""
+
+import time
+
+import pytest
+from rich.console import Console
 
 from domino_game.game.engine import Game
 from domino_game.models import Domino
 from domino_game.ui.renderer.game_renderer import GameRenderer
-from rich.console import Console
-import time
 
 
+@pytest.mark.slow
 def test_renderer():
     """Test the full-screen renderer with a sample game state."""
     console = Console()
@@ -40,7 +43,7 @@ def test_renderer():
             status = f"Testing player {i} - {game.players[i].name}"
             renderer.update_display(game, valid_moves, status)
             renderer.refresh()
-            time.sleep(2)
+            time.sleep(0.5)  # Reduced from 2s for faster tests
 
         # Test with last played highlighting
         last_domino = Domino(6, 4)
@@ -48,12 +51,12 @@ def test_renderer():
         renderer.mark_last_played(last_domino)
         renderer.update_display(game, None, "Highlighting last played domino")
         renderer.refresh()
-        time.sleep(2)
+        time.sleep(0.5)
 
         renderer.clear_last_played()
         renderer.update_display(game, None, "Test complete!")
         renderer.refresh()
-        time.sleep(2)
+        time.sleep(0.5)
 
     finally:
         renderer.stop_live_display()
@@ -61,5 +64,11 @@ def test_renderer():
     console.print("[green]✓ Renderer test completed successfully![/green]")
 
 
-if __name__ == "__main__":
-    test_renderer()
+def test_renderer_creation():
+    """Test basic renderer creation."""
+    console = Console()
+    renderer = GameRenderer(console)
+    assert renderer.console == console
+    assert renderer.layout is None
+    assert renderer.live is None
+    assert renderer.last_played_domino is None

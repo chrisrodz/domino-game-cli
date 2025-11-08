@@ -1,15 +1,13 @@
 """Scoring logic for domino games."""
 
-from typing import Tuple, List
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
-
 
 console = Console()
 
 
-def calculate_round_score(players: List, board) -> Tuple[int, int]:
+def calculate_round_score(players: list, board) -> tuple[int, int]:
     """
     Calculate scores for the round.
 
@@ -48,7 +46,7 @@ def calculate_round_score(players: List, board) -> Tuple[int, int]:
     return (winner.team, points)
 
 
-def determine_winner(team_scores: List[int], target_score: int) -> int:
+def determine_winner(team_scores: list[int], target_score: int) -> int:
     """
     Determine which team has won the game.
 

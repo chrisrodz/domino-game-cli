@@ -1,12 +1,11 @@
 """CLI interface for Caribbean Domino Game."""
 
 import typer
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich import box
 
 from domino_game.game.engine import Game
-
 
 console = Console()
 app = typer.Typer(help="Caribbean Domino Game - 2v2 Domino Game CLI")
@@ -15,7 +14,7 @@ app = typer.Typer(help="Caribbean Domino Game - 2v2 Domino Game CLI")
 @app.command()
 def play(
     target_score: int = typer.Option(200, "--target", "-t", help="Target score to win the game"),
-    quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins")
+    quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins"),
 ):
     """
     🎲 Start a new game of Caribbean Dominoes!
@@ -58,7 +57,7 @@ def rules():
         "[dim]Tip: Play high-value dominoes and doubles strategically![/dim]",
         title="[bold yellow]🎲 How to Play 🎲[/bold yellow]",
         border_style="cyan",
-        box=box.DOUBLE
+        box=box.DOUBLE,
     )
     console.print(rules_panel)
 
@@ -84,7 +83,7 @@ def about():
         "[dim]Version 2.0 - Enhanced Edition[/dim]",
         title="[bold magenta]About[/bold magenta]",
         border_style="magenta",
-        box=box.DOUBLE
+        box=box.DOUBLE,
     )
     console.print(about_panel)
 

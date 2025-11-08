@@ -1,11 +1,10 @@
 """Legacy turn-by-turn display functions (non-full-screen mode)."""
 
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich import box
-
 
 console = Console()
 
@@ -27,7 +26,7 @@ class LegacyDisplay:
             board.to_rich(),
             title="[bold yellow]Board[/bold yellow]",
             subtitle=f"[dim]Left: [{board.left_value()}] | Right: [{board.right_value()}][/dim]",
-            border_style="yellow"
+            border_style="yellow",
         )
         console.print(board_panel)
 
@@ -53,11 +52,9 @@ class LegacyDisplay:
         """Display numbered list of valid moves."""
         console.print("[bold cyan]Available moves:[/bold cyan]\n")
         for i, (domino, position) in enumerate(valid_moves, 1):
-            position_text = {
-                'first': '🎯 First move',
-                'left': '⬅️  Play on left',
-                'right': '➡️  Play on right'
-            }.get(position, position)
+            position_text = {"first": "🎯 First move", "left": "⬅️  Play on left", "right": "➡️  Play on right"}.get(
+                position, position
+            )
 
             move_text = Text(f"  {i}. ")
             move_text.append(domino.to_rich())
@@ -98,8 +95,8 @@ class LegacyDisplay:
         score_table = Table(box=box.DOUBLE_EDGE, show_header=False)
         score_table.add_column("Team", style="cyan bold", justify="center")
         score_table.add_column("Score", style="yellow bold", justify="center")
-        score_table.add_row(f"Team 1 (You & Ally)", f"{team_scores[0]} pts")
-        score_table.add_row(f"Team 2 (Opponents)", f"{team_scores[1]} pts")
+        score_table.add_row("Team 1 (You & Ally)", f"{team_scores[0]} pts")
+        score_table.add_row("Team 2 (Opponents)", f"{team_scores[1]} pts")
         console.print(score_table, justify="center")
 
     @staticmethod

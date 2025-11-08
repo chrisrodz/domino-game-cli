@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tests for scoring logic."""
 
 from domino_game.game.engine import Game
@@ -18,8 +17,8 @@ def test_scoring():
     game.players[3].hand = [Domino(4, 4)]  # 8
 
     winning_team, points = calculate_round_score(game.players, game.board)
-    assert winning_team == 0, "Team 0 should win (player went out)"
-    assert points == 27, "Should score 12+7+8=27 points"
+    assert winning_team == 0
+    assert points == 27
 
 
 def test_blocked_game():
@@ -34,24 +33,17 @@ def test_blocked_game():
     game.players[3].hand = [Domino(6, 6)]  # 12 points
 
     winning_team, points = calculate_round_score(game.players, game.board)
-    assert winning_team == 1, "Team 1 should win (lowest hand value)"
-    assert points == 29, "Should score 8+9+12=29 points"
+    assert winning_team == 1
+    assert points == 29
 
 
 def test_determine_winner():
     """Test winner determination."""
     team_scores = [150, 100]
-    assert determine_winner(team_scores, 200) == -1, "No winner yet"
+    assert determine_winner(team_scores, 200) == -1
 
     team_scores = [200, 150]
-    assert determine_winner(team_scores, 200) == 0, "Team 0 should win"
+    assert determine_winner(team_scores, 200) == 0
 
     team_scores = [180, 210]
-    assert determine_winner(team_scores, 200) == 1, "Team 1 should win"
-
-
-if __name__ == "__main__":
-    test_scoring()
-    test_blocked_game()
-    test_determine_winner()
-    print("✓ All scoring tests passed!")
+    assert determine_winner(team_scores, 200) == 1

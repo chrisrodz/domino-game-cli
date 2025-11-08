@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 """Tests for AI strategies."""
 
 from domino_game.game.ai import SimpleStrategy
-from domino_game.models import Player, PlayerType, Board, Domino
+from domino_game.models import Board, Domino, Player, PlayerType
 
 
 def test_simple_strategy():
@@ -20,8 +19,8 @@ def test_simple_strategy():
     valid_moves = player.get_valid_moves(board)
     best_move = strategy.get_best_move(player, valid_moves, board)
 
-    assert best_move is not None, "Should return a move"
-    assert best_move in valid_moves, "Move should be in valid moves"
+    assert best_move is not None
+    assert best_move in valid_moves
 
 
 def test_simple_strategy_prefers_doubles():
@@ -39,7 +38,7 @@ def test_simple_strategy_prefers_doubles():
     best_move = strategy.get_best_move(player, valid_moves, board)
 
     # With bonus, double should be preferred despite lower base value
-    assert best_move[0].is_double() or best_move[0].value() >= 9, "Should prefer high value or double"
+    assert best_move[0].is_double() or best_move[0].value() >= 9
 
 
 def test_simple_strategy_no_moves():
@@ -51,11 +50,4 @@ def test_simple_strategy_no_moves():
     valid_moves = []
     best_move = strategy.get_best_move(player, valid_moves, board)
 
-    assert best_move is None, "Should return None when no valid moves"
-
-
-if __name__ == "__main__":
-    test_simple_strategy()
-    test_simple_strategy_prefers_doubles()
-    test_simple_strategy_no_moves()
-    print("✓ All AI tests passed!")
+    assert best_move is None

@@ -24,20 +24,23 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .
+        pip install -e ".[dev]"
 
-    - name: Run model tests
+    - name: Run tests with pytest
       run: |
-        python tests/test_models/test_domino.py
-        python tests/test_models/test_board.py
-        python tests/test_models/test_player.py
+        pytest -v --tb=short
 
-    - name: Run game logic tests
+    - name: Run tests with coverage
+      if: matrix.python-version == '3.11'
       run: |
-        python tests/test_game/test_deck.py
-        python tests/test_game/test_ai.py
-        python tests/test_game/test_engine.py
-        python tests/test_game/test_scoring.py
+        pytest --cov=domino_game --cov-report=term-missing --cov-report=xml
+
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
 
     - name: Verify CLI installation
       run: |
@@ -58,15 +61,17 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .
-        pip install flake8
+        pip install -e ".[dev]"
 
-    - name: Lint with flake8
+    - name: Lint with ruff
       run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        flake8 domino_game --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings. GitHub editor is 127 chars wide
-        flake8 domino_game --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # Check for errors
+        ruff check domino_game tests
+
+    - name: Format check with ruff
+      run: |
+        # Check formatting
+        ruff format --check domino_game tests
 
   package-test:
     runs-on: ubuntu-latest
