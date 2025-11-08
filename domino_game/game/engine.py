@@ -29,6 +29,7 @@ class Game:
         self.target_score = 200
         self.round_number = 1
         self.consecutive_passes = 0
+        self.last_player_to_move = None  # Track who made the last non-pass move
         self.renderer = None
         self.use_full_screen = True  # Toggle for full-screen mode
         self.cpu_strategy = SimpleStrategy()
@@ -102,6 +103,7 @@ class Game:
 
         player.passed_last_turn = False
         self.consecutive_passes = 0
+        self.last_player_to_move = player  # Track this player made a move
 
         # Update display with valid moves
         if player.player_type == PlayerType.HUMAN:
@@ -182,6 +184,7 @@ class Game:
 
         player.passed_last_turn = False
         self.consecutive_passes = 0
+        self.last_player_to_move = player  # Track this player made a move
 
         if player.player_type == PlayerType.HUMAN:
             chosen_move = self.get_human_move(player, valid_moves)
@@ -287,6 +290,7 @@ class Game:
         self.board = Board()
         self.deal_dominoes()
         self.consecutive_passes = 0
+        self.last_player_to_move = None  # Reset for new round
 
         # Find starting player
         self.current_player_idx = self.find_starting_player()
@@ -310,7 +314,7 @@ class Game:
             self.current_player_idx = (self.current_player_idx + 1) % 4
 
         # Round ended - calculate scores
-        winning_team, points = calculate_round_score(self.players, self.board)
+        winning_team, points = calculate_round_score(self.players, self.board, self.last_player_to_move)
         self.team_scores[winning_team] += points
 
         # Show round results
@@ -349,6 +353,7 @@ class Game:
         self.board = Board()
         self.deal_dominoes()
         self.consecutive_passes = 0
+        self.last_player_to_move = None  # Reset for new round
 
         # Find starting player
         self.current_player_idx = self.find_starting_player()
@@ -368,7 +373,7 @@ class Game:
             self.current_player_idx = (self.current_player_idx + 1) % 4
 
         # Round ended - calculate scores
-        winning_team, points = calculate_round_score(self.players, self.board)
+        winning_team, points = calculate_round_score(self.players, self.board, self.last_player_to_move)
         self.team_scores[winning_team] += points
 
         console.print()
