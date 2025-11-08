@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.prompt import Confirm, IntPrompt
 from rich import box
 from rich.text import Text
+from board_renderer import GameRenderer
 
 # Initialize Rich console
 console = Console()
@@ -36,12 +37,18 @@ class Domino:
     def __str__(self) -> str:
         return f"[{self.left}|{self.right}]"
 
-    def to_rich(self) -> str:
-        """Return a rich-formatted representation."""
+    def to_rich(self) -> Text:
+        """Return a rich-formatted representation with brackets."""
         colors = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'white']
         left_color = colors[self.left % len(colors)]
         right_color = colors[self.right % len(colors)]
-        return f"[bold {left_color}]{self.left}[/]|[bold {right_color}]{self.right}[/]"
+
+        text = Text("[")
+        text.append(str(self.left), style=f"bold {left_color}")
+        text.append("|")
+        text.append(str(self.right), style=f"bold {right_color}")
+        text.append("]")
+        return text
 
     def value(self) -> int:
         """Total value (sum of both sides)."""
@@ -134,11 +141,17 @@ class Board:
             return "Empty board"
         return " ".join(str(d) for d in self.dominoes)
 
-    def to_rich(self) -> str:
+    def to_rich(self) -> Text:
         """Return a rich-formatted representation of the board."""
         if self.is_empty():
-            return "[dim]Empty board[/dim]"
-        return " ".join(f"[{d.to_rich()}]" for d in self.dominoes)
+            return Text("Empty board", style="dim")
+
+        text = Text()
+        for i, d in enumerate(self.dominoes):
+            if i > 0:
+                text.append(" ")
+            text.append(d.to_rich())
+        return text
 
 
 class Player:
@@ -218,6 +231,8 @@ class Game:
         self.target_score = 200
         self.round_number = 1
         self.consecutive_passes = 0
+        self.renderer: Optional[GameRenderer] = None
+        self.use_full_screen = True  # Toggle for full-screen mode
 
     def setup_players(self):
         """Setup 4 players: Human, CPU Ally, 2 CPU Opponents."""
@@ -263,6 +278,89 @@ class Game:
         Execute a player's turn.
         Returns True if the game should continue, False if round ended.
         """
+        if not self.use_full_screen:
+            # Fallback to old display mode
+            return self._play_turn_legacy(player)
+
+        # Get valid moves
+        valid_moves = player.get_valid_moves(self.board)
+
+        if not valid_moves:
+            player.passed_last_turn = True
+            self.consecutive_passes += 1
+
+            # Update display to show pass
+            status_msg = f"{player.name} has no valid moves and must PASS."
+            if player.player_type == PlayerType.HUMAN:
+                valid_moves_for_display = []
+            else:
+                valid_moves_for_display = None
+
+            self.renderer.update_display(self, valid_moves_for_display, status_msg)
+            self.renderer.refresh()
+
+            if player.player_type == PlayerType.HUMAN:
+                self.renderer.prompt_confirmation(self, "You must pass - no valid moves available.")
+
+            import time
+            time.sleep(1.0)  # Pause so CPU passes are visible
+
+            # Check if game is blocked (all players passed)
+            if self.consecutive_passes >= 4:
+                return False
+            return True
+
+        player.passed_last_turn = False
+        self.consecutive_passes = 0
+
+        # Update display with valid moves
+        if player.player_type == PlayerType.HUMAN:
+            self.renderer.update_display(self, valid_moves, "Your turn - choose your move")
+        else:
+            self.renderer.update_display(self, None, f"{player.name} is thinking...")
+
+        self.renderer.refresh()
+
+        if player.player_type == PlayerType.HUMAN:
+            chosen_move = self.get_human_move(player, valid_moves)
+        else:
+            chosen_move = self.get_cpu_move(player, valid_moves)
+
+        if chosen_move:
+            domino, position = chosen_move
+
+            # Play the domino
+            if position == 'first':
+                self.board.play_domino(domino)
+            elif position == 'left':
+                self.board.play_domino(domino, on_left=True)
+            else:  # right
+                self.board.play_domino(domino, on_left=False)
+
+            player.remove_domino(domino)
+
+            # Mark the domino as last played for highlighting
+            self.renderer.mark_last_played(domino)
+
+            # Update display to show the played domino
+            status_msg = f"✓ {player.name} played on {position}"
+            self.renderer.update_display(self, None, status_msg)
+            self.renderer.refresh()
+
+            # Pause for visual effect
+            self.renderer.pause_for_effect(0.8)
+
+            # Clear the highlight
+            self.renderer.clear_last_played()
+
+            # Check if player went out
+            if player.is_out():
+                return False
+
+        return True
+
+    def _play_turn_legacy(self, player: Player) -> bool:
+        """Legacy turn logic without full-screen renderer (fallback)."""
         # Display turn header
         console.print()
         console.rule(f"[bold cyan]{player.name}'s Turn (Team {player.team + 1})[/bold cyan]")
@@ -312,7 +410,13 @@ class Game:
                 self.board.play_domino(domino, on_left=False)
 
             player.remove_domino(domino)
-            console.print(f"\n[green]✓[/green] {player.name} played [{domino.to_rich()}] on the [bold]{position}[/bold]")
+            msg = Text("\n")
+            msg.append("✓", style="green")
+            msg.append(f" {player.name} played ")
+            msg.append(domino.to_rich())
+            msg.append(" on the ")
+            msg.append(position, style="bold")
+            console.print(msg)
 
             # Check if player went out
             if player.is_out():
@@ -325,47 +429,65 @@ class Game:
 
     def get_human_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
         """Get move from human player using numbered selection."""
-        # Display your hand in a nice table
-        hand_table = Table(title="[bold green]Your Hand[/bold green]", box=box.ROUNDED)
-        hand_table.add_column("Domino", style="cyan", justify="center")
-        hand_table.add_column("Value", style="yellow", justify="center")
+        if not self.use_full_screen:
+            # Legacy mode - display everything
+            hand_table = Table(title="[bold green]Your Hand[/bold green]", box=box.ROUNDED)
+            hand_table.add_column("Domino", style="cyan", justify="center")
+            hand_table.add_column("Value", style="yellow", justify="center")
 
-        sorted_hand = sorted(player.hand, key=lambda d: d.value())
-        for domino in sorted_hand:
-            hand_table.add_row(f"[{domino.to_rich()}]", str(domino.value()))
+            sorted_hand = sorted(player.hand, key=lambda d: d.value())
+            for domino in sorted_hand:
+                hand_table.add_row(domino.to_rich(), str(domino.value()))
 
-        hand_table.add_row("", "", end_section=True)
-        hand_table.add_row("[bold]Total[/bold]", f"[bold]{player.hand_value()}[/bold]")
+            hand_table.add_row("", "", end_section=True)
+            hand_table.add_row("[bold]Total[/bold]", f"[bold]{player.hand_value()}[/bold]")
 
-        console.print(hand_table)
-        console.print()
+            console.print(hand_table)
+            console.print()
 
-        # Display numbered list of valid moves
-        console.print("[bold cyan]Available moves:[/bold cyan]\n")
-        for i, (domino, position) in enumerate(valid_moves, 1):
-            position_text = {
-                'first': '🎯 First move',
-                'left': '⬅️  Play on left',
-                'right': '➡️  Play on right'
-            }.get(position, position)
+            # Display numbered list of valid moves
+            console.print("[bold cyan]Available moves:[/bold cyan]\n")
+            for i, (domino, position) in enumerate(valid_moves, 1):
+                position_text = {
+                    'first': '🎯 First move',
+                    'left': '⬅️  Play on left',
+                    'right': '➡️  Play on right'
+                }.get(position, position)
 
-            console.print(f"  {i}. [{domino.to_rich()}] - {position_text} (value: {domino.value()})")
+                move_text = Text(f"  {i}. ")
+                move_text.append(domino.to_rich())
+                move_text.append(f" - {position_text} (value: {domino.value()})")
+                console.print(move_text)
 
-        console.print()
+            console.print()
 
-        # Get user selection using IntPrompt
-        choice = IntPrompt.ask(
-            "Choose your move",
-            choices=[str(i) for i in range(1, len(valid_moves) + 1)],
-            show_choices=False
-        )
+        # Get user selection
+        if self.use_full_screen:
+            # Use renderer's prompt method to keep display active
+            valid_choices = [str(i) for i in range(1, len(valid_moves) + 1)]
+            prompt_text = f"Choose your move (enter number 1-{len(valid_moves)})"
+            choice_str = self.renderer.prompt_user_input(
+                self,
+                prompt_text,
+                valid_moves=valid_moves,
+                valid_choices=valid_choices
+            )
+            choice = int(choice_str)
+        else:
+            # Use IntPrompt for non-full-screen mode
+            choice = IntPrompt.ask(
+                "Choose your move (enter number)",
+                choices=[str(i) for i in range(1, len(valid_moves) + 1)],
+                show_choices=False
+            )
 
         return valid_moves[choice - 1]
 
     def get_cpu_move(self, player: Player, valid_moves: List[Tuple[Domino, str]]) -> Optional[Tuple[Domino, str]]:
         """Simple CPU AI: prioritize high-value dominoes and doubles."""
-        console.print(f"\n[yellow]🤔 {player.name} is thinking...[/yellow]")
-        console.print(f"[dim]{player.name}'s hand: {len(player.hand)} dominoes[/dim]")
+        if not self.use_full_screen:
+            console.print(f"\n[yellow]🤔 {player.name} is thinking...[/yellow]")
+            console.print(f"[dim]{player.name}'s hand: {len(player.hand)} dominoes[/dim]")
 
         # Strategy: Play highest value domino, prefer doubles
         best_move = None
@@ -382,7 +504,7 @@ class Game:
                 best_move = (domino, position)
 
         import time
-        time.sleep(0.5)  # Brief pause for realism
+        time.sleep(0.8)  # Brief pause for realism
 
         return best_move
 
@@ -420,6 +542,61 @@ class Game:
 
     def play_round(self):
         """Play a single round of dominoes."""
+        if not self.use_full_screen:
+            return self._play_round_legacy()
+
+        self.board = Board()
+        self.deal_dominoes()
+        self.consecutive_passes = 0
+
+        # Find starting player
+        self.current_player_idx = self.find_starting_player()
+        starting_player = self.players[self.current_player_idx]
+
+        # Initialize display for new round
+        status_msg = f"🎲 Round {self.round_number} - {starting_player.name} starts"
+        self.renderer.update_display(self, None, status_msg)
+        self.renderer.refresh()
+
+        # Brief pause to show starting player
+        import time
+        time.sleep(1.5)
+
+        # Play turns until round ends
+        game_continues = True
+        while game_continues:
+            player = self.players[self.current_player_idx]
+            game_continues = self.play_turn(player)
+
+            # Move to next player (counter-clockwise)
+            self.current_player_idx = (self.current_player_idx + 1) % 4
+
+        # Round ended - calculate scores
+        winning_team, points = self.calculate_round_scores()
+        self.team_scores[winning_team] += points
+
+        # Show round results
+        self.renderer.stop_live_display()
+        console.print()
+        console.rule("[bold green]🎉 ROUND COMPLETE 🎉[/bold green]", style="green")
+
+        result_panel = Panel(
+            f"[bold cyan]Team {winning_team + 1}[/bold cyan] wins [bold yellow]{points} points![/bold yellow]\n\n"
+            f"[bold]Current Scores:[/bold]\n"
+            f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
+            f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points",
+            title=f"[bold]Round {self.round_number} Results[/bold]",
+            border_style="green"
+        )
+        console.print(result_panel)
+
+        Confirm.ask("\nPress Enter to continue to next round", default=True)
+
+        self.round_number += 1
+        self.renderer.start_live_display()
+
+    def _play_round_legacy(self):
+        """Legacy round logic without full-screen renderer."""
         console.print()
         console.rule(f"[bold magenta]⚡ ROUND {self.round_number} ⚡[/bold magenta]", style="magenta")
 
@@ -493,7 +670,7 @@ class Game:
             f"  • Can't play? You must pass\n"
             f"  • Round ends when someone goes out or game is blocked\n"
             f"  • Winner gets points = sum of losers' remaining dominoes\n\n"
-            f"[dim]Use arrow keys (↑↓) or j/k to navigate menus[/dim]",
+            f"[dim]Full-screen board display enabled - press Ctrl+C to quit[/dim]",
             title=welcome_text,
             border_style="cyan",
             box=box.DOUBLE
@@ -504,8 +681,18 @@ class Game:
 
         self.setup_players()
 
-        while max(self.team_scores) < self.target_score:
-            self.play_round()
+        # Initialize renderer for full-screen mode
+        if self.use_full_screen:
+            self.renderer = GameRenderer(console)
+            self.renderer.start_live_display()
+
+        try:
+            while max(self.team_scores) < self.target_score:
+                self.play_round()
+        finally:
+            # Clean up renderer
+            if self.use_full_screen and self.renderer:
+                self.renderer.stop_live_display()
 
         # Game over
         winning_team = 0 if self.team_scores[0] >= self.target_score else 1
