@@ -32,9 +32,26 @@ def test_blocked_game():
     game.players[2].hand = [Domino(4, 5)]  # 9 points
     game.players[3].hand = [Domino(6, 6)]  # 12 points
 
-    winning_team, points = calculate_round_score(game.players, game.board)
+    winning_team, points = calculate_round_score(game.players, game.board, blocking_team=1)
     assert winning_team == 1
-    assert points == 29
+    assert points == 35
+
+
+def test_blocked_game_tie_prefers_blocking_team():
+    """In a tie, the blocking team should win."""
+    game = Game()
+    game.setup_players()
+
+    # Teams 0 and 1 tie with the same low value
+    game.players[0].hand = [Domino(1, 4)]  # 5 points (Team 0)
+    game.players[1].hand = [Domino(2, 3)]  # 5 points (Team 1)
+    game.players[2].hand = [Domino(5, 5)]  # 10 points
+    game.players[3].hand = [Domino(6, 4)]  # 10 points
+
+    winning_team, points = calculate_round_score(game.players, game.board, blocking_team=0)
+    assert winning_team == 0
+    # All unplayed dominoes count toward the score
+    assert points == 30
 
 
 def test_determine_winner():
