@@ -32,6 +32,7 @@ class Game:
         self.renderer = None
         self.use_full_screen = True  # Toggle for full-screen mode
         self.cpu_strategy = SimpleStrategy()
+        self.last_played_team: Optional[int] = None
 
     def setup_players(self):
         """Setup 4 players: Human, CPU Ally, 2 CPU Opponents."""
@@ -128,6 +129,7 @@ class Game:
                 self.board.play_domino(domino, on_left=False)
 
             player.remove_domino(domino)
+            self.last_played_team = player.team
 
             # Mark the domino as last played for highlighting
             self.renderer.mark_last_played(domino)
@@ -200,6 +202,7 @@ class Game:
                 self.board.play_domino(domino, on_left=False)
 
             player.remove_domino(domino)
+            self.last_played_team = player.team
             msg = Text("\n")
             msg.append("✓", style="green")
             msg.append(f" {player.name} played ")
@@ -285,6 +288,7 @@ class Game:
             return self._play_round_legacy()
 
         self.board = Board()
+        self.last_played_team = None
         self.deal_dominoes()
         self.consecutive_passes = 0
 
@@ -310,7 +314,7 @@ class Game:
             self.current_player_idx = (self.current_player_idx + 1) % 4
 
         # Round ended - calculate scores
-        winning_team, points = calculate_round_score(self.players, self.board)
+        winning_team, points = calculate_round_score(self.players, self.board, self.last_played_team)
         self.team_scores[winning_team] += points
 
         # Show round results
@@ -347,6 +351,7 @@ class Game:
         console.print(score_table, justify="center")
 
         self.board = Board()
+        self.last_played_team = None
         self.deal_dominoes()
         self.consecutive_passes = 0
 
@@ -368,7 +373,7 @@ class Game:
             self.current_player_idx = (self.current_player_idx + 1) % 4
 
         # Round ended - calculate scores
-        winning_team, points = calculate_round_score(self.players, self.board)
+        winning_team, points = calculate_round_score(self.players, self.board, self.last_played_team)
         self.team_scores[winning_team] += points
 
         console.print()
