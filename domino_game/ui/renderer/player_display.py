@@ -80,9 +80,33 @@ class PlayerDisplay:
         hand_table = Table(show_header=True, box=None, padding=(0, 1))
         hand_table.add_column("Domino", justify="center", style="cyan")
         hand_table.add_column("Value", justify="center", style="yellow")
+        hand_table.add_column("Moves", justify="center", style="green")
 
+        # Build domino-to-moves mapping
+        domino_moves = {}  # {domino: [(option_num, position), ...]}
+        for idx, (domino, position) in enumerate(valid_moves, 1):
+            if domino not in domino_moves:
+                domino_moves[domino] = []
+            domino_moves[domino].append((idx, position))
+
+        # Add rows for each domino in hand
         for domino in player.hand:
-            hand_table.add_row(domino.to_rich(), str(domino.value()))
+            # Generate moves cell content
+            if domino in domino_moves:
+                moves_list = domino_moves[domino]
+                move_parts = []
+                for option_num, position in moves_list:
+                    if position == "left":
+                        move_parts.append(f"{option_num}(L)")
+                    elif position == "right":
+                        move_parts.append(f"{option_num}(R)")
+                    else:  # first move
+                        move_parts.append(f"{option_num}")
+                moves_text = ", ".join(move_parts)
+            else:
+                moves_text = "-"
+
+            hand_table.add_row(domino.to_rich(), str(domino.value()), moves_text)
 
         # Create content
         content_parts = [hand_table]

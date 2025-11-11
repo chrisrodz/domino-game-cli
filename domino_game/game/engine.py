@@ -21,12 +21,13 @@ console = Console()
 class Game:
     """Orchestrates the domino game."""
 
-    def __init__(self):
+    def __init__(self, game_mode: str = "target_score", target_score: int = 200):
         self.players: list[Player] = []
         self.board = Board()
         self.current_player_idx = 0
         self.team_scores = [0, 0]  # Team 0 and Team 1
-        self.target_score = 200
+        self.game_mode = game_mode  # "target_score" or "single_round"
+        self.target_score = target_score
         self.round_number = 1
         self.consecutive_passes = 0
         self.renderer = None
@@ -394,7 +395,7 @@ class Game:
         self.round_number += 1
 
     def play_game(self):
-        """Play the full game until a team reaches target score."""
+        """Play the full game until a team reaches target score or complete single round."""
         # Welcome screen
         console.clear()
         welcome_text = Text()
@@ -402,8 +403,14 @@ class Game:
         welcome_text.append("CARIBBEAN DOMINOES", style="bold cyan")
         welcome_text.append(" 🎲", style="bold yellow")
 
+        # Build mode-specific welcome message
+        if self.game_mode == "single_round":
+            mode_info = "[bold yellow]Mode:[/bold yellow] Single Round\n\n"
+        else:
+            mode_info = f"[bold yellow]Target Score:[/bold yellow] {self.target_score} points\n\n"
+
         welcome_panel = Panel(
-            f"[bold yellow]Target Score:[/bold yellow] {self.target_score} points\n\n"
+            f"{mode_info}"
             f"[bold cyan]Teams:[/bold cyan]\n"
             f"  🟢 Team 1: You & Ally\n"
             f"  🔴 Team 2: Opponent 1 & Opponent 2\n\n"
@@ -432,29 +439,53 @@ class Game:
             self.renderer.start_live_display()
 
         try:
-            while max(self.team_scores) < self.target_score:
+            if self.game_mode == "single_round":
+                # Play exactly one round
                 self.play_round()
+            else:
+                # Play until target score reached
+                while max(self.team_scores) < self.target_score:
+                    self.play_round()
         finally:
             # Clean up renderer
             if self.use_full_screen and self.renderer:
                 self.renderer.stop_live_display()
 
         # Game over
-        winning_team = 0 if self.team_scores[0] >= self.target_score else 1
-
         console.clear()
         console.print()
-        console.rule("[bold yellow]🏆 GAME OVER 🏆[/bold yellow]", style="yellow")
 
-        game_over_style = "bold green" if winning_team == 0 else "bold red"
-        game_over_panel = Panel(
-            f"[{game_over_style}]Team {winning_team + 1} WINS![/{game_over_style}]\n\n"
-            f"[bold]Final Scores:[/bold]\n"
-            f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
-            f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points\n\n"
-            f"{'[green]Congratulations! 🎉[/green]' if winning_team == 0 else '[red]Better luck next time! 💪[/red]'}",
-            title="[bold]Game Results[/bold]",
-            border_style="yellow",
-            box=box.DOUBLE,
-        )
-        console.print(game_over_panel)
+        if self.game_mode == "single_round":
+            # Single round result
+            winning_team = 0 if self.team_scores[0] > self.team_scores[1] else 1
+            console.rule("[bold yellow]🏆 ROUND COMPLETE 🏆[/bold yellow]", style="yellow")
+
+            game_over_style = "bold green" if winning_team == 0 else "bold red"
+            game_over_panel = Panel(
+                f"[{game_over_style}]Team {winning_team + 1} WINS THE ROUND![/{game_over_style}]\n\n"
+                f"[bold]Round Scores:[/bold]\n"
+                f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
+                f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points\n\n"
+                f"{'[green]Well played! 🎉[/green]' if winning_team == 0 else '[red]Better luck next time! 💪[/red]'}",
+                title="[bold]Round Results[/bold]",
+                border_style="yellow",
+                box=box.DOUBLE,
+            )
+            console.print(game_over_panel)
+        else:
+            # Full game result
+            winning_team = 0 if self.team_scores[0] >= self.target_score else 1
+            console.rule("[bold yellow]🏆 GAME OVER 🏆[/bold yellow]", style="yellow")
+
+            game_over_style = "bold green" if winning_team == 0 else "bold red"
+            game_over_panel = Panel(
+                f"[{game_over_style}]Team {winning_team + 1} WINS![/{game_over_style}]\n\n"
+                f"[bold]Final Scores:[/bold]\n"
+                f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
+                f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points\n\n"
+                f"{'[green]Congratulations! 🎉[/green]' if winning_team == 0 else '[red]Better luck next time! 💪[/red]'}",
+                title="[bold]Game Results[/bold]",
+                border_style="yellow",
+                box=box.DOUBLE,
+            )
+            console.print(game_over_panel)
