@@ -16,7 +16,7 @@ def calculate_round_score(players: list, board, blocking_team: Optional[int] = N
     Args:
         players: List of all players
         board: The game board
-        blocking_team: Team index (0 or 1) of the last team to successfully play a domino before the game became blocked
+        blocking_team: Team index (0 or 1) that last played before the block
 
     Returns:
         Tuple of (winning_team, points_earned)
