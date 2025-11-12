@@ -457,21 +457,35 @@ class Game:
 
         if self.game_mode == "single_round":
             # Single round result
-            winning_team = 0 if self.team_scores[0] > self.team_scores[1] else 1
-            console.rule("[bold yellow]🏆 ROUND COMPLETE 🏆[/bold yellow]", style="yellow")
+            if self.team_scores[0] == self.team_scores[1]:
+                console.rule("[bold yellow]🏆 ROUND COMPLETE 🏆[/bold yellow]", style="yellow")
+                game_over_panel = Panel(
+                    f"[bold magenta]The round ended in a tie![/bold magenta]\n\n"
+                    f"[bold]Round Scores:[/bold]\n"
+                    f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
+                    f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points\n\n"
+                    f"[cyan]It was a close game! 🤝[/cyan]",
+                    title="[bold]Round Results[/bold]",
+                    border_style="yellow",
+                    box=box.DOUBLE,
+                )
+                console.print(game_over_panel)
+            else:
+                winning_team = 0 if self.team_scores[0] > self.team_scores[1] else 1
+                console.rule("[bold yellow]🏆 ROUND COMPLETE 🏆[/bold yellow]", style="yellow")
 
-            game_over_style = "bold green" if winning_team == 0 else "bold red"
-            game_over_panel = Panel(
-                f"[{game_over_style}]Team {winning_team + 1} WINS THE ROUND![/{game_over_style}]\n\n"
-                f"[bold]Round Scores:[/bold]\n"
-                f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
-                f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points\n\n"
-                f"{'[green]Well played! 🎉[/green]' if winning_team == 0 else '[red]Better luck next time! 💪[/red]'}",
-                title="[bold]Round Results[/bold]",
-                border_style="yellow",
-                box=box.DOUBLE,
-            )
-            console.print(game_over_panel)
+                game_over_style = "bold green" if winning_team == 0 else "bold red"
+                game_over_panel = Panel(
+                    f"[{game_over_style}]Team {winning_team + 1} WINS THE ROUND![/{game_over_style}]\n\n"
+                    f"[bold]Round Scores:[/bold]\n"
+                    f"  Team 1 (You & Ally): [yellow]{self.team_scores[0]}[/yellow] points\n"
+                    f"  Team 2 (Opponents): [yellow]{self.team_scores[1]}[/yellow] points\n\n"
+                    f"{'[green]Well played! 🎉[/green]' if winning_team == 0 else '[red]Better luck next time! 💪[/red]'}",
+                    title="[bold]Round Results[/bold]",
+                    border_style="yellow",
+                    box=box.DOUBLE,
+                )
+                console.print(game_over_panel)
         else:
             # Full game result
             winning_team = 0 if self.team_scores[0] >= self.target_score else 1
