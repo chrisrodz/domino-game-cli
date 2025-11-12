@@ -23,7 +23,7 @@ class SetupMenu:
 
     PRESET_SCORES = [100, 200, 300, 500]
 
-    def __init__(self, console: Console = None):
+    def __init__(self, console: Console | None = None):
         """Initialize the setup menu."""
         self.console = console or Console()
         self.selected_index = 0
