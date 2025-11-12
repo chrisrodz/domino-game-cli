@@ -1,7 +1,5 @@
 """CLI interface for Caribbean Domino Game."""
 
-from typing import Optional
-
 import typer
 from rich import box
 from rich.console import Console
@@ -16,7 +14,7 @@ app = typer.Typer(help="Caribbean Domino Game - 2v2 Domino Game CLI")
 
 @app.command()
 def play(
-    target_score: Optional[int] = typer.Option(None, "--target", "-t", help="Target score to win the game"),
+    target_score: int | None = typer.Option(None, "--target", "-t", help="Target score to win the game"),
     quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins"),
     single_round: bool = typer.Option(False, "--single-round", "-s", help="Play a single round only"),
     skip_setup: bool = typer.Option(False, "--skip-setup", help="Skip setup menu (use with other flags)"),
