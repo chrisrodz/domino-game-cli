@@ -34,11 +34,7 @@ class SetupMenu:
         self.console.clear()
 
         # Show title
-        title = Panel(
-            Align.center(Text("CARIBBEAN DOMINOES", style="bold cyan")),
-            border_style="cyan",
-            box=ROUNDED
-        )
+        title = Panel(Align.center(Text("CARIBBEAN DOMINOES", style="bold cyan")), border_style="cyan", box=ROUNDED)
         self.console.print(title)
         self.console.print()
 
@@ -70,7 +66,9 @@ class SetupMenu:
             self.console.print()
 
             while True:
-                choice = self.console.input(f"[yellow]Select target score (1-{len(self.PRESET_SCORES) + 1}):[/yellow] ").strip()
+                choice = self.console.input(
+                    f"[yellow]Select target score (1-{len(self.PRESET_SCORES) + 1}):[/yellow] "
+                ).strip()
                 try:
                     choice_num = int(choice)
                     if 1 <= choice_num <= len(self.PRESET_SCORES):
@@ -101,12 +99,7 @@ class SetupMenu:
         self.console.print()
 
         # Show configuration summary
-        summary = Panel(
-            self._render_config_summary(),
-            title="Configuration",
-            border_style="green",
-            box=ROUNDED
-        )
+        summary = Panel(self._render_config_summary(), title="Configuration", border_style="green", box=ROUNDED)
         self.console.print(summary)
         self.console.print()
 
