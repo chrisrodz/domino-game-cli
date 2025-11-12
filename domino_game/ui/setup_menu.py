@@ -1,7 +1,7 @@
 """Setup menu for game configuration."""
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 
 from rich.align import Align
 from rich.box import ROUNDED
@@ -23,7 +23,7 @@ class SetupMenu:
 
     PRESET_SCORES = [100, 200, 300, 500]
 
-    def __init__(self, console: Console | None = None):
+    def __init__(self, console: Optional[Console] = None):
         """Initialize the setup menu."""
         self.console = console or Console()
         self.game_mode = "target_score"
