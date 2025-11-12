@@ -28,7 +28,6 @@ class SetupMenu:
         self.console = console or Console()
         self.game_mode = "target_score"
         self.target_score = 200
-        self.target_score_index = 1  # Default to 200
 
     def run(self) -> SetupConfig:
         """Run the setup menu and return configuration."""
