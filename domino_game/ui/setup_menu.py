@@ -26,8 +26,6 @@ class SetupMenu:
     def __init__(self, console: Console | None = None):
         """Initialize the setup menu."""
         self.console = console or Console()
-        self.selected_index = 0
-        self.menu_state = "main"  # "main", "target_score", "custom_input"
         self.game_mode = "target_score"
         self.target_score = 200
         self.target_score_index = 1  # Default to 200
