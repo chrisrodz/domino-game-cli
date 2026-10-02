@@ -39,7 +39,7 @@ Simple but effective AI that:
 
 ### Requirements
 
-- Python 3.7 or higher
+- Python 3.14 or higher
 
 ### Running the Game
 

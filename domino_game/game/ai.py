@@ -1,7 +1,6 @@
 """CPU AI strategies for domino gameplay."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from domino_game.models.domino import Domino
 
@@ -10,7 +9,7 @@ class CPUStrategy(ABC):
     """Abstract base class for CPU strategies."""
 
     @abstractmethod
-    def get_best_move(self, player, valid_moves: list[tuple[Domino, str]], board) -> Optional[tuple[Domino, str]]:
+    def get_best_move(self, player, valid_moves: list[tuple[Domino, str]], board) -> tuple[Domino, str] | None:
         """
         Get the best move for the CPU player.
 
@@ -28,7 +27,7 @@ class CPUStrategy(ABC):
 class SimpleStrategy(CPUStrategy):
     """Simple greedy strategy: play highest value dominoes, prefer doubles."""
 
-    def get_best_move(self, player, valid_moves: list[tuple[Domino, str]], board) -> Optional[tuple[Domino, str]]:
+    def get_best_move(self, player, valid_moves: list[tuple[Domino, str]], board) -> tuple[Domino, str] | None:
         """
         Simple CPU AI: prioritize high-value dominoes and doubles.
 

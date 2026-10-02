@@ -22,7 +22,7 @@ git clone <repository-url>
 cd domino-game-cli
 ```
 
-2. Install dependencies:
+2. Install dependencies (uv uses the Python 3.14.8 pin in `.python-version`):
 ```bash
 uv sync
 ```
@@ -83,7 +83,7 @@ uv run python main.py about
 
 ## 🛠️ Technology Stack
 
-- **Python 3.9+**: Core language
+- **Python 3.14+**: Core language
 - **Typer**: CLI framework with rich help formatting
 - **Rich**: Beautiful terminal output with colors and formatting
 
@@ -144,7 +144,7 @@ Continuous Integration runs automatically on:
 - Pull requests to `main`
 - Pushes to `main` branch
 
-The CI tests the package on Python 3.9, 3.10, 3.11, and 3.12.
+CI runs tests and lint checks on Python 3.14.8, using the same `.python-version` pin as local development.
 
 ## 📝 Commands Reference
 

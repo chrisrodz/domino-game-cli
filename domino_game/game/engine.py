@@ -1,7 +1,6 @@
 """Game orchestration engine."""
 
 import time
-from typing import Optional
 
 from rich import box
 from rich.console import Console
@@ -33,7 +32,7 @@ class Game:
         self.renderer = None
         self.use_full_screen = True  # Toggle for full-screen mode
         self.cpu_strategy = SimpleStrategy()
-        self.last_played_team: Optional[int] = None
+        self.last_played_team: int | None = None
 
     def setup_players(self):
         """Setup 4 players: Human, CPU Ally, 2 CPU Opponents."""
@@ -221,7 +220,7 @@ class Game:
 
         return True
 
-    def get_human_move(self, player: Player, valid_moves: list[tuple[Domino, str]]) -> Optional[tuple[Domino, str]]:
+    def get_human_move(self, player: Player, valid_moves: list[tuple[Domino, str]]) -> tuple[Domino, str] | None:
         """Get move from human player using numbered selection."""
         if not self.use_full_screen:
             # Legacy mode - display everything
@@ -270,7 +269,7 @@ class Game:
 
         return valid_moves[choice - 1]
 
-    def get_cpu_move(self, player: Player, valid_moves: list[tuple[Domino, str]]) -> Optional[tuple[Domino, str]]:
+    def get_cpu_move(self, player: Player, valid_moves: list[tuple[Domino, str]]) -> tuple[Domino, str] | None:
         """Get CPU move using the configured strategy."""
         if not self.use_full_screen:
             console.print(f"\n[yellow]🤔 {player.name} is thinking...[/yellow]")

@@ -40,7 +40,7 @@ class Domino:
         """Check if either side matches the given value."""
         return self.left == value or self.right == value
 
-    def flip(self) -> "Domino":
+    def flip(self) -> Domino:
         """Return a flipped version of this domino."""
         return Domino(self.right, self.left)
 
