@@ -1,0 +1,308 @@
+@media (min-width: 1700px) {
+  #yard {
+    height: calc(100svh - 322px);
+  }
+  .hand-area {
+    min-height: 226px;
+  }
+  .domino {
+    width: 55px;
+    height: 100px;
+  }
+  .pip-half {
+    width: 38px;
+    height: 38px;
+  }
+  .pip {
+    width: 5px;
+    height: 5px;
+  }
+}
+@media (max-width: 1050px) {
+  .topbar {
+    padding: 0 24px;
+    gap: 20px;
+  }
+  .scoreboard {
+    gap: 15px;
+  }
+  .scoreboard > div {
+    gap: 10px;
+  }
+  nav {
+    gap: 14px;
+  }
+  .hand-area {
+    padding: 25px 24px;
+    grid-template-columns: 170px 1fr 185px;
+    gap: 16px;
+  }
+  .hand {
+    gap: 8px;
+  }
+  .domino {
+    width: 43px;
+  }
+  .hand-caption h2 {
+    font-size: 23px;
+  }
+  .scene-heading {
+    left: 24px;
+  }
+  .round-status {
+    right: 24px;
+  }
+  .scene-bottom {
+    left: 24px;
+    right: 24px;
+  }
+  .view-controls > span {
+    display: none;
+  }
+  .move-actions button {
+    padding: 11px 12px;
+  }
+  .brand h1 {
+    font-size: 36px;
+  }
+}
+@media (max-width: 760px) {
+  .topbar {
+    height: 122px;
+    padding: 17px 20px 14px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .brand h1 {
+    font-size: 31px;
+  }
+  .brand p {
+    font-size: 7px;
+    letter-spacing: 2px;
+    margin-top: 6px;
+  }
+  .brand-mark {
+    width: 19px;
+    height: 34px;
+  }
+  .brand-mark:after {
+    width: 15px;
+    top: 16px;
+  }
+  .brand {
+    gap: 10px;
+  }
+  nav {
+    gap: 16px;
+  }
+  .text-button {
+    font-size: 11px;
+  }
+  nav .outline-button {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  nav .outline-button span {
+    margin-left: 8px;
+  }
+  .scoreboard {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    padding-bottom: 0;
+    gap: 18px;
+  }
+  .scoreboard strong {
+    font-size: 21px;
+  }
+  .scoreboard > div {
+    gap: 10px;
+  }
+  .scoreboard span {
+    font-size: 10px;
+  }
+  .scoreboard small {
+    position: static;
+    width: auto;
+    margin-left: 4px;
+    font-size: 7px;
+  }
+  .scoreboard .score-divider {
+    font-size: 17px;
+  }
+  #yard {
+    height: calc(100svh - 350px);
+    min-height: 340px;
+  }
+  .scene-heading {
+    top: 20px;
+    left: 20px;
+  }
+  .scene-heading p {
+    font-size: 24px;
+  }
+  .scene-heading .eyebrow {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .round-status {
+    top: 20px;
+    right: 16px;
+    padding: 10px;
+    gap: 6px;
+    font-size: 9px;
+  }
+  .scene-bottom {
+    left: 16px;
+    right: 16px;
+    bottom: 15px;
+    gap: 5px;
+  }
+  .scene-bottom > p {
+    font-size: 9px;
+    padding: 8px;
+    max-width: 56%;
+    line-height: 1.4;
+  }
+  .scene-button {
+    padding: 8px;
+    font-size: 8px;
+  }
+  .view-controls {
+    gap: 4px;
+  }
+  #reset-view {
+    display: none;
+  }
+  .hand-area {
+    padding: 17px 20px 18px;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    min-height: 228px;
+  }
+  .hand-caption h2 {
+    font-size: 20px;
+    margin: 3px 0 0;
+  }
+  .hand-caption .eyebrow {
+    font-size: 7px;
+  }
+  .hand-caption p {
+    display: none;
+  }
+  .hand-workspace {
+    order: 3;
+    grid-column: 1/-1;
+  }
+  .hand {
+    gap: 10px;
+  }
+  .domino {
+    width: 41px;
+    height: 77px;
+    padding: 5px 4px;
+    border-bottom-width: 3px;
+  }
+  .pip-half {
+    width: 29px;
+    height: 28px;
+  }
+  .pip {
+    width: 3.5px;
+    height: 3.5px;
+  }
+  .hand-workspace > p {
+    font-size: 9px;
+    margin: 25px 0 0;
+  }
+  .move-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .move-actions > .eyebrow {
+    display: none;
+  }
+  #end-values {
+    font-size: 22px;
+    margin: 0 3px 0 0;
+  }
+  #end-values span {
+    font-size: 13px;
+    margin: 0 1px;
+  }
+  .move-actions button {
+    font-size: 10px;
+    padding: 9px;
+  }
+  #placement {
+    gap: 5px;
+  }
+  .player-tag {
+    font-size: 8px;
+    padding: 6px 8px;
+    gap: 5px;
+  }
+  .player-tag small {
+    font-size: 8px;
+  }
+  .result {
+    padding: 22px;
+  }
+  .result h2 {
+    font-size: 30px;
+    margin: 9px 0 14px;
+  }
+  .result table {
+    font-size: 10px;
+    margin: 10px 0;
+  }
+  .result td,
+  .result th {
+    padding: 6px 0;
+  }
+  dialog {
+    padding: 28px;
+  }
+  dialog h2 {
+    font-size: 32px;
+  }
+}
+@media (max-width: 390px) {
+  .topbar {
+    padding-left: 15px;
+    padding-right: 15px;
+    gap: 10px;
+  }
+  nav {
+    gap: 10px;
+  }
+  .hand-area {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .hand {
+    gap: 6px;
+  }
+  .domino {
+    width: 39px;
+  }
+  .scene-heading .eyebrow {
+    max-width: 110px;
+    display: block;
+  }
+  .round-status {
+    font-size: 8px;
+  }
+  .scoreboard {
+    gap: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

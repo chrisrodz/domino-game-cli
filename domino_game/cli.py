@@ -15,6 +15,26 @@ app = typer.Typer(help="Caribbean Domino Game - 2v2 Domino Game CLI")
 
 
 @app.command()
+def patio(
+    port: int = typer.Option(8000, min=1, max=65535, help="Local browser port"),
+    target: int = typer.Option(200, min=1, max=1000, help="Target score"),
+    single_round: bool = typer.Option(False, "--single-round", help="Play one round"),
+    browser: bool = typer.Option(True, "--browser/--no-browser", help="Open the browser automatically"),
+):
+    """Play the existing 2v2 game at a Blender-built 3D patio table."""
+    from domino_game.patio.server import serve
+    from domino_game.patio.session import MoveError
+
+    try:
+        serve(
+            port=port, target_score=target, game_mode="single_round" if single_round else "target_score", open_browser=browser
+        )
+    except MoveError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(1) from error
+
+
+@app.command()
 def play(
     target_score: Optional[int] = typer.Option(None, "--target", "-t", help="Target score to win the game"),
     quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins"),

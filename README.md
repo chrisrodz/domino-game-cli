@@ -31,6 +31,47 @@ That's it! Use `uv run python main.py` to start playing (see Usage below).
 
 ## 🎮 Usage
 
+### Play in 3D with Blender-built assets
+
+```bash
+uv run python main.py patio
+
+# Optional: custom score, single round, or another local port
+uv run python main.py patio --target 100
+uv run python main.py patio --single-round
+uv run python main.py patio --port 8001 --no-browser
+```
+
+El Patio opens at `http://127.0.0.1:8000`. Play the existing 2v2 game at a
+sunlit backyard table, with white plastic chairs and banana plants inspired by
+the setting of Bad Bunny's *Debi Tirar Mas Fotos* cover. All scene geometry is
+original, created in Blender; no album artwork or music is included.
+
+Select a highlighted tile in your hand (or on the 3D table), then choose an
+available end. Keys 1-7 select tiles. CPU turns play automatically. Drag to
+orbit, scroll or pinch to zoom, or choose **Table view** for an overhead camera.
+**New game** offers a single round or a target score from 1 to 1000.
+
+The browser uses the Python game's dealing, valid moves, CPU strategy, and
+scoring. Blocked rounds award all unplayed pips, including the winning hand;
+ties favor the team that last played. Later rounds use the CLI's current opener
+behavior (You start). Refreshing retains the game while the server runs.
+Stopping the server clears games. Each browser session gets a separate match.
+
+Requires a browser with WebGL 2. The Python server binds only to loopback;
+it is intended for local play. All browser dependencies and assets are included,
+so playing requires no internet connection or Node.js tooling.
+
+The editable scene is `domino_game/patio/web/assets/el-patio.blend`.
+To rebuild the two GLB files with Blender 4.5 or later:
+
+```bash
+blender --background --python tools/build_patio.py
+```
+
+The browser renderer is Three.js 0.186.1 (MIT), vendored with its license in
+`domino_game/patio/web/vendor/`. The existing terminal commands remain available.
+
 ### Start a Game
 
 ```bash
