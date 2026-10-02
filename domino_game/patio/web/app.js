@@ -1,14 +1,16 @@
 import { PatioScene } from "./scene.js";
+import { tileFace } from "./tile-face.js";
 
 const $ = (selector) => document.querySelector(selector);
-const pipCells = [[], [4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 2, 3, 5, 6, 8]];
 let state,
   scene,
+  spec,
   selected = null,
   busy = false,
   cpuTimer,
   overhead = false,
   sceneReady = false,
+  resultVisible = true,
   previousPhase;
 
 function showError(message) {
@@ -70,18 +72,18 @@ function selectTile(id) {
   if (busy || state?.phase !== "playing" || state.turn !== 0 || !state.moves.some((move) => move.tile === id)) return;
   selected = selected === id ? null : id;
   render();
+  const tile = $(`#hand [data-tile="${id}"]`)?.getBoundingClientRect();
+  const rack = $("#hand").getBoundingClientRect();
+  if (tile && tile.left < rack.left) $("#hand").scrollLeft += tile.left - rack.left - 4;
+  else if (tile && tile.right > rack.right) $("#hand").scrollLeft += tile.right - rack.right + 4;
 }
 
-function half(value) {
-  const element = document.createElement("span");
-  element.className = "pip-half";
-  element.setAttribute("aria-hidden", "true");
-  for (let cell = 0; cell < 9; cell++) {
-    const dot = document.createElement("i");
-    dot.className = pipCells[value].includes(cell) ? "pip" : "pip empty";
-    element.append(dot);
-  }
-  return element;
+function placeAt(position) {
+  const move = state.moves.find(
+    (move) =>
+      move.tile === selected && (move.position === position || (position === "left" && move.position === "first")),
+  );
+  if (move) action("move", { tile: selected, position: move.position });
 }
 
 function renderHand() {
@@ -98,7 +100,7 @@ function renderHand() {
       button.disabled = busy || !legal;
       button.setAttribute("aria-label", `${tile.left}-${tile.right}${legal ? ", playable" : ", unavailable"}`);
       button.setAttribute("aria-pressed", String(selected === tile.id));
-      button.append(half(tile.left), half(tile.right));
+      button.append(tileFace(tile, spec));
       button.addEventListener("click", () => selectTile(tile.id));
       return button;
     }),
@@ -116,7 +118,10 @@ function renderHand() {
           : "Nothing to play.";
   const choices = state.moves.filter((move) => move.tile === selected);
   const first = choices.some((move) => move.position === "first");
-  $("#play-left").textContent = first ? "Place first tile" : "Play left";
+  $("#play-left").textContent = first ? "Place first tile" : `Left \u00b7 ${state.ends.left ?? "-"}`;
+  $("#play-right").textContent = `Right \u00b7 ${state.ends.right ?? "-"}`;
+  $("#play-left").setAttribute("aria-label", first ? "Place first tile" : "Play on the left end");
+  $("#play-right").setAttribute("aria-label", "Play on the right end");
   $("#play-left").disabled = busy || !choices.some((move) => ["left", "first"].includes(move.position));
   $("#play-right").disabled = busy || !choices.some((move) => move.position === "right");
   $("#play-right").hidden = first;
@@ -132,12 +137,13 @@ function renderHand() {
         : !state.moves.length
           ? "No tiles match the open ends. Pass to keep the game moving."
           : selected
-            ? `Selected ${selected}. Choose an available end.`
-            : "Select a highlighted tile, then choose an end. Keys 1-7 also work.";
+            ? `${selected} selected. ${choices.length > 1 ? "Both ends are yours to choose." : "Choose the highlighted end."}`
+            : "Select a tile, then an open end. Keyboard: 1-7.";
 }
 
 function renderResult() {
-  $("#result").hidden = state.phase === "playing";
+  $("#result").hidden = state.phase === "playing" || !resultVisible;
+  $("#show-result").hidden = state.phase === "playing" || resultVisible;
   if (!state.result) return;
   const won = state.result.team === 0;
   const match = state.phase === "match_over";
@@ -180,30 +186,41 @@ function render() {
         ? "Your turn"
         : `${state.players[state.turn].name} is thinking`;
   const event = state.history.at(-1);
-  if (event)
-    $("#last-move").textContent =
+  if (event) {
+    const text =
       event.type === "pass"
         ? `${event.name} passed.`
         : `${event.name} played ${event.tile.left}-${event.tile.right}${event.position === "first" ? " to open the round." : ` on the ${event.position}.`}`;
-  else $("#last-move").textContent = `Seven tiles each. ${state.players[state.turn].name} opens this round.`;
+    $("#last-move").replaceChildren();
+    if (event.tile) $("#last-move").append(tileFace(event.tile, spec));
+    const label = document.createElement("span");
+    label.textContent = text;
+    $("#last-move").append(label);
+  } else $("#last-move").textContent = `Seven tiles each. ${state.players[state.turn].name} opens this round.`;
   renderHand();
+  if (previousPhase !== state.phase) resultVisible = true;
   renderResult();
   if (previousPhase !== state.phase && state.phase !== "playing") $("#continue-button").focus({ preventScroll: true });
   previousPhase = state.phase;
-  if (sceneReady) scene.update(state, selected);
+  if (sceneReady) scene.update(state, { selected, busy });
 }
 
-$("#play-left").addEventListener("click", () =>
-  action("move", {
-    tile: selected,
-    position: state.moves.find((move) => move.tile === selected && ["left", "first"].includes(move.position))?.position,
-  }),
-);
-$("#play-right").addEventListener("click", () => action("move", { tile: selected, position: "right" }));
+$("#play-left").addEventListener("click", () => placeAt("left"));
+$("#play-right").addEventListener("click", () => placeAt("right"));
 $("#pass-button").addEventListener("click", () => action("pass"));
 $("#continue-button").addEventListener("click", () =>
   state.phase === "match_over" ? $("#setup-dialog").showModal() : action("next"),
 );
+$("#view-board").addEventListener("click", () => {
+  resultVisible = false;
+  renderResult();
+  $("#show-result").focus({ preventScroll: true });
+});
+$("#show-result").addEventListener("click", () => {
+  resultVisible = true;
+  renderResult();
+  $("#continue-button").focus({ preventScroll: true });
+});
 $("#rules-button").addEventListener("click", () => $("#rules-dialog").showModal());
 $("#new-button").addEventListener("click", () => {
   $("#target-score").value = state?.target ?? 200;
@@ -299,7 +316,12 @@ document.addEventListener("keydown", (event) => {
 
 async function boot() {
   try {
-    scene = new PatioScene($("#scene"), selectTile);
+    const response = await fetch("/assets/domino-spec.json");
+    if (!response.ok) throw new Error(`Could not load the domino specification (${response.status}).`);
+    spec = await response.json();
+    $(".brand-mark").append(tileFace({ left: 2, right: 2 }, spec));
+    $(".loading-mark").append(tileFace({ left: 6, right: 6 }, spec));
+    scene = new PatioScene($("#scene"), { onSelect: selectTile, onPlace: placeAt, spec });
     const [initial] = await Promise.all([request("state"), scene.load()]);
     state = initial;
     sceneReady = true;

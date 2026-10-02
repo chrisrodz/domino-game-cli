@@ -2,47 +2,56 @@ import * as THREE from "three";
 import { OrbitControls } from "/vendor/controls/OrbitControls.js";
 import { GLTFLoader } from "/vendor/loaders/GLTFLoader.js";
 import { mergeGeometries } from "/vendor/utils/BufferGeometryUtils.js";
+import { RoomEnvironment } from "/vendor/environments/RoomEnvironment.js";
+import { layoutBoard } from "./domino-layout.js";
 
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const seatLocations = [
-  [0, 2.55, 3.5],
-  [4.2, 2.55, 0],
-  [0, 2.65, -3.5],
-  [-4.2, 2.55, 0],
+  [0, 2.55, 4.15],
+  [4.45, 2.55, 0],
+  [0, 2.65, -4.15],
+  [-4.45, 2.55, 0],
 ];
 
 export class PatioScene {
-  constructor(canvas, onSelect) {
+  constructor(canvas, { onSelect, onPlace, spec }) {
     this.canvas = canvas;
     this.onSelect = onSelect;
+    this.spec = spec;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 0.94;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color("#b8c2a5");
     this.scene.fog = new THREE.Fog("#b8c2a5", 21, 44);
+    const environment = new RoomEnvironment();
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(environment, 0.04).texture;
+    this.scene.environmentIntensity = 0.35;
+    environment.dispose();
+    pmrem.dispose();
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 70);
-    this.camera.position.set(7.7, 9.5, 11.4);
+    this.camera.position.set(0, 9.2, 10.2);
     this.controls = new OrbitControls(this.camera, canvas);
-    this.controls.target.set(0, 1.35, 0);
+    this.controls.target.set(0, 1.8, 0);
     this.controls.enableDamping = !reducedMotion;
     this.controls.enablePan = false;
-    this.controls.minDistance = 8;
+    this.controls.minDistance = 5.5;
     this.controls.maxDistance = 23;
-    this.controls.minPolarAngle = 0.06;
+    this.controls.minPolarAngle = 0;
     this.controls.maxPolarAngle = Math.PI / 2.6;
     this.controls.saveState();
-    this.scene.add(new THREE.HemisphereLight("#fff8df", "#7e8967", 2.4));
-    const sun = new THREE.DirectionalLight("#fff1c5", 3.3);
+    this.scene.add(new THREE.HemisphereLight("#fff8df", "#7e8967", 1.8));
+    const sun = new THREE.DirectionalLight("#fff1dc", 2.8);
     sun.position.set(-5, 11, 5);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 0.5, far: 35 });
     sun.shadow.bias = -0.0002;
-    sun.shadow.normalBias = 0.025;
+    sun.shadow.normalBias = 0.006;
     sun.shadow.radius = 3;
     this.scene.add(sun);
     this.templates = new Map();
@@ -53,6 +62,15 @@ export class PatioScene {
     this.selection = null;
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
+    this.endButtons = ["left", "right"].map((end) => {
+      const button = document.createElement("button");
+      button.className = "end-port";
+      button.dataset.end = end;
+      button.hidden = true;
+      button.addEventListener("click", () => onPlace(end));
+      document.querySelector("#board-ends").append(button);
+      return button;
+    });
     this.tags = seatLocations.map((_, index) => {
       const tag = document.createElement("div");
       tag.className = "player-tag";
@@ -95,7 +113,11 @@ export class PatioScene {
       const geometry = node.geometry.clone().applyMatrix4(node.matrixWorld);
       const key = node.material.uuid + Object.keys(geometry.attributes).sort().join(",");
       if (!batches.has(key))
-        batches.set(key, { material: node.material, geometries: [], leaf: node.name.includes("Banana_leaf") });
+        batches.set(key, {
+          material: node.material,
+          geometries: [],
+          leaf: node.name.includes("Banana_leaf") || node.name.includes("Leaf_midrib"),
+        });
       batches.get(key).geometries.push(geometry);
     });
     for (const batch of batches.values()) {
@@ -164,20 +186,7 @@ export class PatioScene {
     });
   }
 
-  layout(count) {
-    if (count <= 7)
-      return Array.from({ length: count }, (_, i) => ({ x: (i - (count - 1) / 2) * 0.64, z: -0.15, angle: 0 }));
-    const path = [];
-    for (let row = 0; row < 4; row++) {
-      const reverse = row % 2 === 1;
-      for (let col = 0; col < 7; col++)
-        path.push({ x: (reverse ? 3 - col : col - 3) * 0.64, z: -1.15 + row * 0.7, angle: reverse ? Math.PI : 0 });
-      if (row < 3) path.push({ x: (reverse ? -1 : 1) * 2.23, z: -0.8 + row * 0.7, angle: -Math.PI / 2 });
-    }
-    return path.slice(0, count);
-  }
-
-  update(state, selected) {
+  update(state, { selected, busy }) {
     if (!this.templates.size) return;
     this.selection = selected;
     const boardIds = new Set(state.board.map((tile) => tile.id));
@@ -187,7 +196,8 @@ export class PatioScene {
         this.boardTiles.delete(id);
       }
     }
-    const path = this.layout(state.board.length);
+    this.layout = layoutBoard(state.board, { spec: this.spec, opening: state.opening });
+    const path = this.layout.tiles;
     state.board.forEach((tile, index) => {
       let group = this.boardTiles.get(tile.id);
       if (!group) {
@@ -197,7 +207,11 @@ export class PatioScene {
       }
       const { x, z, angle } = path[index];
       group.userData.target = new THREE.Vector3(x, 1.83, z);
-      group.rotation.y = angle + (tile.left > tile.right ? Math.PI : 0) + (tile.left === tile.right ? Math.PI / 2 : 0);
+      // Keep the existing chain touching while the newly played tile drops into place.
+      group.position.x = x;
+      group.position.z = z;
+      group.rotation.y = angle;
+      group.scale.setScalar(this.layout.scale);
     });
     const hand = state.players[0].hand;
     const handIds = new Set(hand.map((tile) => tile.id));
@@ -213,15 +227,15 @@ export class PatioScene {
         group = this.tile(tile, { selectable: true });
         this.handTiles.set(tile.id, group);
       }
-      group.position.set((index - (hand.length - 1) / 2) * 0.4, 1.91, 1.75);
-      group.rotation.set(0, Math.PI / 2, 0);
+      group.position.set((index - (hand.length - 1) / 2) * 0.43, 1.83, 2.55);
+      group.rotation.set(0, -Math.PI / 2, 0);
       const legal = state.moves.some((move) => move.tile === tile.id);
       group.position.y += selected === tile.id ? 0.17 : 0;
       group.traverse((node) => {
         if (node.isMesh && node.name.startsWith("Domino_body")) {
           node.material.emissive.set(selected === tile.id ? "#587b38" : "#000000");
           node.material.emissiveIntensity = 0.24;
-          node.material.color.set(legal ? "#fff9dd" : "#e5e0c9");
+          node.material.color.set(legal ? "#fff5dc" : "#e3dfd0");
         }
       });
     });
@@ -233,10 +247,10 @@ export class PatioScene {
         const group = this.tile(reveal ? reveal[i] : { id: "0-0" }, { hidden: !reveal });
         const offset = (i - (state.players[player].count - 1) / 2) * 0.37;
         if (player === 2) {
-          group.position.set(-offset, reveal ? 1.86 : 1.99, -1.92);
+          group.position.set(-offset, reveal ? 1.83 : 1.83 + this.spec.height, -2.55);
           group.rotation.y = Math.PI / 2;
         } else {
-          group.position.set(player === 1 ? 2.62 : -2.62, reveal ? 1.86 : 1.99, offset);
+          group.position.set(player === 1 ? 2.78 : -2.78, reveal ? 1.83 : 1.83 + this.spec.height, offset);
           group.rotation.y = 0;
         }
         this.hiddenTiles.push(group);
@@ -248,37 +262,74 @@ export class PatioScene {
       this.tags[index].querySelector("small").textContent =
         `${player.count} ${player.count === 1 ? "tile" : "tiles"}${player.passed ? " / passed" : ""}`;
     });
+    this.endButtons.forEach((button) => {
+      const end = button.dataset.end;
+      button.hidden = !this.layout.ends || state.phase !== "playing";
+      button.disabled =
+        busy || state.turn !== 0 || !state.moves.some((move) => move.tile === selected && move.position === end);
+      button.textContent = `${end === "left" ? "Left" : "Right"} \u00b7 ${state.ends[end] ?? "-"}`;
+      button.setAttribute("aria-label", `Play ${selected ?? "a tile"} on the ${end} end, matching ${state.ends[end]}`);
+    });
   }
 
   setView(overhead) {
-    this.controls.target.set(0, 1.35, 0);
-    this.cameraDestination = overhead ? new THREE.Vector3(0, 12.5, 0.15) : new THREE.Vector3(7.7, 9.5, 11.4);
+    this.controls.target.set(0, 1.8, 0);
+    this.cameraDestination = overhead
+      ? new THREE.Vector3(0, this.camera.aspect < 1 ? 9.4 : 10.4, 0.001)
+      : new THREE.Vector3(0, 9.2, 10.2);
+    this.controls.enabled = false;
     if (reducedMotion) {
       this.camera.position.copy(this.cameraDestination);
       this.cameraDestination = null;
+      this.controls.enabled = true;
     }
   }
 
   frame(time) {
     if (this.cameraDestination) {
       this.camera.position.lerp(this.cameraDestination, 0.09);
-      if (this.camera.position.distanceTo(this.cameraDestination) < 0.02) this.cameraDestination = null;
+      if (this.camera.position.distanceTo(this.cameraDestination) < 0.02) {
+        this.camera.position.copy(this.cameraDestination);
+        this.cameraDestination = null;
+        this.controls.enabled = true;
+      }
     }
     for (const group of this.boardTiles.values()) {
       if (group.userData.target) group.position.lerp(group.userData.target, reducedMotion ? 1 : 0.17);
     }
     if (!reducedMotion)
-      this.foliage.forEach((mesh, index) => {
-        mesh.rotation.y = Math.sin(time * 0.0006 + index) * 0.003;
+      this.foliage.forEach((mesh) => {
+        mesh.rotation.y = Math.sin(time * 0.0006) * 0.002;
       });
-    this.controls.update();
+    if (this.cameraDestination) this.camera.lookAt(this.controls.target);
+    else this.controls.update();
     this.camera.updateMatrixWorld();
     const rect = this.canvas.getBoundingClientRect();
+    this.endButtons.forEach((button) => {
+      if (!this.layout?.ends || button.hidden) return;
+      const { point, direction } = this.layout.ends[button.dataset.end];
+      const projected = new THREE.Vector3(point[0], 1.95, point[1]).project(this.camera);
+      const extended = new THREE.Vector3(point[0] + direction[0], 1.95, point[1] + direction[1]).project(this.camera);
+      const dx = (extended.x - projected.x) * rect.width;
+      const dy = (projected.y - extended.y) * rect.height;
+      const magnitude = Math.hypot(dx, dy) || 1;
+      const unit = [dx / magnitude, dy / magnitude];
+      // Screen-space clearance keeps touch targets away from the pips at every zoom.
+      const clearance =
+        (Math.abs(unit[0]) * button.offsetWidth) / 2 + (Math.abs(unit[1]) * button.offsetHeight) / 2 + 12;
+      const x = ((projected.x + 1) / 2) * rect.width + unit[0] * clearance;
+      const y = ((1 - projected.y) / 2) * rect.height + unit[1] * clearance;
+      button.style.left = `${Math.max(button.offsetWidth / 2 + 8, Math.min(rect.width - button.offsetWidth / 2 - 8, x))}px`;
+      button.style.top = `${y}px`;
+      button.style.visibility =
+        projected.z > 1 || Math.abs(projected.x) > 0.96 || Math.abs(projected.y) > 0.92 ? "hidden" : "visible";
+    });
     seatLocations.forEach((location, index) => {
       const projected = new THREE.Vector3(...location).project(this.camera);
       const tag = this.tags[index];
-      tag.style.left = `${((projected.x + 1) / 2) * rect.width}px`;
-      tag.style.top = `${((-projected.y + 1) / 2) * rect.height}px`;
+      const x = ((projected.x + 1) / 2) * rect.width;
+      tag.style.left = `${Math.max(tag.offsetWidth / 2 + 8, Math.min(rect.width - tag.offsetWidth / 2 - 8, x))}px`;
+      tag.style.top = `${((-projected.y + 1) / 2) * rect.height - (index % 2 ? 24 : 0)}px`;
       tag.hidden = projected.z > 1 || Math.abs(projected.x) > 0.95 || Math.abs(projected.y) > 0.82;
     });
     this.renderer.render(this.scene, this.camera);

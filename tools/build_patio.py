@@ -3,6 +3,7 @@
 Run: blender --background --python tools/build_patio.py
 """
 
+import json
 import math
 import random
 from pathlib import Path
@@ -12,6 +13,7 @@ from mathutils import Vector
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "domino_game/patio/web/assets"
+SPEC = json.loads((ASSETS / "domino-spec.json").read_text())
 random.seed(66)
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
@@ -28,19 +30,30 @@ def material(name, color, roughness=0.8):
 
 
 def texture(mat, kind):
-    size = 256
+    size = 512
     image = bpy.data.images.new(f"{kind}_texture", width=size, height=size)
     pixels = []
     base = mat.diffuse_color[:3]
+
+    def srgb(value):
+        linear = max(0, min(1, value))
+        return linear * 12.92 if linear <= 0.0031308 else 1.055 * linear ** (1 / 2.4) - 0.055
+
     for y in range(size):
         for x in range(size):
-            grain = 0.035 if kind == "wood" else 0.018
+            grain = {"wood": 0.012, "felt": 0.0025, "leaf": 0.004}.get(kind, 0.015)
             noise = random.uniform(-grain, grain)
             if kind == "wood":
-                noise += 0.025 * math.sin(y * 0.8 + math.sin(x * 0.04) * 3)
+                noise += 0.006 * math.sin(y * 0.8 + math.sin(x * 0.04) * 3)
+            elif kind == "leaf":
+                noise += 0.007 * math.sin(y * 0.34 + abs(x - size / 2) * 0.18)
+                noise += 0.012 * (1 - abs(x - size / 2) / (size / 2))
+            elif kind == "felt":
+                noise += 0.0015 * math.sin(x * 0.3) * math.cos(y * 0.3)
             else:
                 noise += 0.012 * math.sin(x * 0.08) * math.cos(y * 0.09)
-            pixels.extend([max(0, min(1, c + noise)) for c in base] + [1])
+            # glTF base-color textures are sRGB; Blender material colors are linear.
+            pixels.extend([srgb(c + noise) for c in base] + [1])
     image.pixels = pixels
     image.pack()
     node = mat.node_tree.nodes.new("ShaderNodeTexImage")
@@ -48,19 +61,26 @@ def texture(mat, kind):
     mat.node_tree.links.new(node.outputs["Color"], mat.node_tree.nodes.get("Principled BSDF").inputs["Base Color"])
 
 
-WHITE = material("Warm white molded plastic", (0.83, 0.83, 0.72), 0.47)
-WOOD = material("Sun-worn cedar", (0.29, 0.17, 0.075))
+WHITE = material("Warm white molded plastic", (0.91, 0.89, 0.81), 0.34)
+WOOD = material("Sun-worn cedar", (0.24, 0.12, 0.052), 0.65)
 texture(WOOD, "wood")
-FELT = material("Faded olive tabletop", (0.19, 0.25, 0.13))
+FELT = material("Bottle green tabletop", (0.035, 0.11, 0.068))
 texture(FELT, "felt")
-EARTH = material("Patio soil", (0.14, 0.20, 0.065))
+EARTH = material("Patio soil", (0.11, 0.14, 0.044))
 texture(EARTH, "earth")
-GRASS = [material(f"Grass {i}", c) for i, c in enumerate([(0.09, 0.23, 0.035), (0.14, 0.29, 0.055), (0.19, 0.32, 0.065)])]
-LEAVES = [material(f"Banana leaf {i}", c) for i, c in enumerate([(0.07, 0.25, 0.055), (0.12, 0.34, 0.07), (0.23, 0.38, 0.09)])]
-TRUNK = material("Banana stems", (0.31, 0.34, 0.12))
-IVORY = material("Ivory domino resin", (0.92, 0.89, 0.75), 0.32)
-INK = material("Recessed charcoal pips", (0.027, 0.038, 0.025), 0.6)
-TERRACOTTA = material("Terracotta", (0.46, 0.19, 0.10))
+GRASS = [material(f"Grass {i}", c) for i, c in enumerate([(0.055, 0.10, 0.025), (0.065, 0.12, 0.030), (0.10, 0.15, 0.045)])]
+LEAVES = [
+    material(f"Banana leaf {i}", c) for i, c in enumerate([(0.03, 0.11, 0.035), (0.06, 0.16, 0.041), (0.11, 0.21, 0.055)])
+]
+for mat in LEAVES:
+    texture(mat, "leaf")
+TRUNK = material("Banana stems", (0.18, 0.22, 0.075))
+VEIN = material("Leaf midribs", (0.12, 0.23, 0.065))
+IVORY = material("Ivory domino resin", (0.93, 0.89, 0.78), 0.25)
+INK = material("Recessed charcoal pips", (0.009, 0.012, 0.01), 0.23)
+BRASS = material("Brass center spinner", (0.48, 0.35, 0.14), 0.27)
+BRASS.node_tree.nodes.get("Principled BSDF").inputs["Metallic"].default_value = 0.8
+TERRACOTTA = material("Glazed terracotta", (0.46, 0.19, 0.10), 0.3)
 
 
 def finish(obj, name, mat, parent=None):
@@ -89,10 +109,30 @@ def box(name, spec, mat, parent=None):
 def rod(name, ends, mat, radius=0.035):
     start, end = (Vector(point) for point in ends)
     direction = end - start
-    bpy.ops.mesh.primitive_cylinder_add(vertices=10, radius=radius, depth=direction.length, location=(start + end) / 2)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=radius, depth=direction.length, location=(start + end) / 2)
     obj = bpy.context.object
     obj.rotation_euler = direction.to_track_quat("Z", "Y").to_euler()
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
     return finish(obj, name, mat)
+
+
+def curved_rod(name, points, mat, radius=0.035):
+    curve = bpy.data.curves.new(name, "CURVE")
+    curve.dimensions = "3D"
+    curve.bevel_depth = radius
+    curve.bevel_resolution = 3
+    spline = curve.splines.new("POLY")
+    spline.points.add(len(points) - 1)
+    for point, coordinates in zip(spline.points, points):
+        point.co = (*coordinates, 1)
+    obj = bpy.data.objects.new(name, curve)
+    bpy.context.collection.objects.link(obj)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.convert(target="MESH")
+    return finish(bpy.context.object, name, mat)
 
 
 def chair(location, angle):
@@ -108,10 +148,17 @@ def chair(location, angle):
         support.parent = root
         back = rod("Back frame", ((x * 1.15, 0.49, 1.02), (x * 1.22, 0.73, 2.25)), WHITE, 0.085)
         back.parent = root
-    box("Rounded back crown", ((0, 0.73, 2.24), (1.28, 0.14, 0.18), 0.065), WHITE, root)
+    crown = curved_rod(
+        "Arched chair back",
+        [(-0.61 + i * 0.061, 0.73, 2.18 + 0.16 * math.sin(i / 20 * math.pi)) for i in range(21)],
+        WHITE,
+        0.08,
+    )
+    crown.parent = root
     box("Back lower rail", ((0, 0.52, 1.22), (1.18, 0.13, 0.15), 0.05), WHITE, root)
     for x in [-0.40, -0.24, -0.08, 0.08, 0.24, 0.40]:
-        slat = rod("Open back slat", ((x * 0.8, 0.52, 1.24), (x, 0.73, 2.18)), WHITE, 0.045)
+        slat = box("Molded back slat", ((x, 0.635, 1.74), (0.095, 0.07, 0.92), 0.032), WHITE)
+        slat.rotation_euler.x = -0.21
         slat.parent = root
     root.location = location
     root.rotation_euler.z = angle
@@ -120,37 +167,44 @@ def chair(location, angle):
 def leaf(origin, spec, mat):
     angle, length, width, lift = spec
     vertices, faces = [], []
-    steps = 14
+    steps = 18
+    columns = 7
     for i in range(steps + 1):
         t = i / steps
-        spread = math.sin(math.pi * t) ** 0.7 * width
-        drop = lift * math.sin(t * math.pi / 1.6) - length * 0.18 * t * t
-        for side in [-1, 0, 1]:
-            torn = 0.85 if side and i in (5, 9, 12) else 1
-            lateral = side * spread * torn
+        spread = math.sin(math.pi * t) ** 0.65 * width
+        drop = lift * math.sin(t * math.pi / 1.6) - length * 0.34 * t * t
+        for column in range(columns):
+            side = column / 3 - 1
+            lateral = side * spread
             along = t * length
             vertices.append(
                 (
                     origin[0] + along * math.cos(angle) - lateral * math.sin(angle),
                     origin[1] + along * math.sin(angle) + lateral * math.cos(angle),
-                    origin[2] + drop - abs(side) * spread * 0.16,
+                    origin[2] + drop - abs(side) ** 1.5 * spread * 0.25 + math.sin(t * 20 + side * 4) * abs(side) * 0.022,
                 )
             )
     for i in range(steps):
-        for side in range(2):
-            a = i * 3 + side
-            faces.append((a, a + 1, a + 4, a + 3))
+        for side in range(columns - 1):
+            if side in (0, columns - 2) and i in (8, 13):
+                continue
+            a = i * columns + side
+            faces.append((a, a + 1, a + 1 + columns, a + columns))
     mesh = bpy.data.meshes.new("Curved banana leaf")
     mesh.from_pydata(vertices, [], faces)
     mesh.update()
+    uv = mesh.uv_layers.new(name="Leaf veins")
+    for polygon in mesh.polygons:
+        for loop_index in polygon.loop_indices:
+            vertex_index = mesh.loops[loop_index].vertex_index
+            uv.data[loop_index].uv = (vertex_index % columns / (columns - 1), vertex_index // columns / steps)
     obj = bpy.data.objects.new("Banana leaf", mesh)
     bpy.context.collection.objects.link(obj)
     obj.data.materials.append(mat)
     for polygon in mesh.polygons:
         polygon.use_smooth = True
     mat.use_backface_culling = False
-    for i in range(steps):
-        rod("Leaf midrib", (vertices[i * 3 + 1], vertices[(i + 1) * 3 + 1]), TRUNK, 0.013)
+    curved_rod("Leaf midrib", [vertices[i * columns + 3] for i in range(steps + 1)], VEIN, 0.009)
 
 
 def banana_tree(location, height):
@@ -174,23 +228,23 @@ def banana_tree(location, height):
 # A finite, gently irregular backyard gives the scene a tabletop-diorama silhouette.
 bpy.ops.mesh.primitive_cylinder_add(vertices=72, radius=10.2, depth=0.30, location=(0, 0, -0.22))
 finish(bpy.context.object, "Earthen yard", EARTH)
-box("Table timber frame", ((0, 0, 1.65), (6.1, 4.8, 0.25), 0.08), WOOD)
-box("Olive playing surface", ((0, 0, 1.79), (5.77, 4.47, 0.07), 0.035), FELT)
-for x in [-2.65, 2.65]:
-    for y in [-2.0, 2.0]:
+box("Table timber frame", ((0, 0, 1.65), (6.6, 6.2, 0.25), 0.08), WOOD)
+box("Green playing surface", ((0, 0, 1.79), (6.27, 5.87, 0.07), 0.035), FELT)
+for x in [-2.9, 2.9]:
+    for y in [-2.7, 2.7]:
         box("Table leg", ((x, y, 0.8), (0.21, 0.21, 1.6), 0.025), WOOD)
-for y in [-1.98, 1.98]:
-    box("Table cross brace", ((0, y, 0.48), (5.5, 0.14, 0.14), 0.025), WOOD)
-for x in [-2.94, 2.94]:
-    box("Wood table rim", ((x, 0, 1.84), (0.15, 4.8, 0.13), 0.035), WOOD)
-for y in [-2.32, 2.32]:
-    box("Wood table rim", ((0, y, 1.84), (5.87, 0.15, 0.13), 0.035), WOOD)
-for y in [-2.08, 2.08]:
-    box("Domino rack", ((0, y, 1.9), (3.25, 0.12, 0.15), 0.025), WOOD)
-chair((0, -3.25, 0), math.pi)
-chair((0.1, 3.3, 0), -0.12)
-chair((-4.02, 0.15, 0), math.pi / 2 + 0.1)
-chair((4.02, 0.15, 0), -math.pi / 2 - 0.08)
+for y in [-2.65, 2.65]:
+    box("Table cross brace", ((0, y, 0.48), (5.9, 0.14, 0.14), 0.025), WOOD)
+for x in [-3.19, 3.19]:
+    box("Wood table rim", ((x, 0, 1.84), (0.15, 6.2, 0.13), 0.035), WOOD)
+for y in [-2.99, 2.99]:
+    box("Wood table rim", ((0, y, 1.84), (6.12, 0.15, 0.13), 0.035), WOOD)
+for y in [-2.92, 2.92]:
+    box("Domino rack", ((0, y, 1.9), (3.8, 0.10, 0.15), 0.025), WOOD)
+chair((0, -4.0, 0), math.pi)
+chair((0.1, 4.0, 0), -0.12)
+chair((-4.25, 0.15, 0), math.pi / 2 + 0.1)
+chair((4.25, 0.15, 0), -math.pi / 2 - 0.08)
 for location, height in [
     ((-5.8, 4.3), 4.7),
     ((-2.8, 6.4), 5.2),
@@ -198,7 +252,7 @@ for location, height in [
     ((4.4, 5.3), 5.1),
     ((6.3, 2.8), 4.1),
     ((-6.4, 0.4), 3.5),
-    ((5.8, -3.4), 3.1),
+    ((-7.8, -2.7), 3.1),
 ]:
     banana_tree(location, height)
 
@@ -209,9 +263,9 @@ for material_index, mat in enumerate(GRASS):
         x, y = random.uniform(-9.5, 9.5), random.uniform(-9.5, 9.5)
         if x * x + y * y > 90 or (abs(x) < 3.6 and abs(y) < 3.1):
             continue
-        height = random.uniform(0.08, 0.25)
+        height = random.uniform(0.035, 0.11)
         angle = random.uniform(0, math.tau)
-        a, b = math.cos(angle) * 0.026, math.sin(angle) * 0.026
+        a, b = math.cos(angle) * 0.012, math.sin(angle) * 0.012
         index = len(vertices)
         vertices.extend([(x - a, y - b, -0.06), (x + a, y + b, -0.06), (x + height * 0.25, y, height)])
         faces.append((index, index + 1, index + 2))
@@ -220,6 +274,7 @@ for material_index, mat in enumerate(GRASS):
     obj = bpy.data.objects.new(f"Grass patch {material_index}", mesh)
     bpy.context.collection.objects.link(obj)
     mesh.materials.append(mat)
+    mat.use_backface_culling = False
 
 for _i in range(16):
     x, y = random.uniform(-8, 8), random.uniform(-8, 8)
@@ -230,7 +285,7 @@ for _i in range(16):
     obj.scale.z = 0.4
 
 # Small familiar table objects, outside the playable area.
-for x, y in [(-2.57, 1.83), (2.55, -1.80)]:
+for x, y in [(-2.89, 2.59), (2.89, -2.59)]:
     bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.13, depth=0.25, location=(x, y, 1.98))
     finish(bpy.context.object, "Coffee cup", TERRACOTTA)
     bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.108, depth=0.012, location=(x, y, 2.112))
@@ -247,30 +302,59 @@ for obj in environment:
     obj.select_set(True)
 bpy.ops.export_scene.gltf(filepath=str(ASSETS / "patio.glb"), export_format="GLB", use_selection=True, export_apply=True)
 
-PIPS = {
-    0: [],
-    1: [(0, 0)],
-    2: [(-1, -1), (1, 1)],
-    3: [(-1, -1), (0, 0), (1, 1)],
-    4: [(-1, -1), (1, -1), (-1, 1), (1, 1)],
-    5: [(-1, -1), (1, -1), (0, 0), (-1, 1), (1, 1)],
-    6: [(-1, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (1, 1)],
-}
 tiles = []
 for left in range(7):
     for right in range(left, 7):
         before = set(bpy.context.scene.objects)
         root = bpy.data.objects.new(f"tile_{left}_{right}", None)
         bpy.context.collection.objects.link(root)
-        box("Domino body", ((0, 0, 0.065), (0.59, 0.30, 0.13), 0.025), IVORY, root)
-        box("Center groove", ((0, 0, 0.131), (0.007, 0.26, 0.004), 0.001), INK, root)
+        body = box(
+            "Domino body",
+            ((0, 0, SPEC["height"] / 2), (SPEC["length"], SPEC["width"], SPEC["height"]), SPEC["bevel"]),
+            IVORY,
+            root,
+        )
+        box(
+            "Center groove",
+            ((0, 0, SPEC["height"] - 0.001), (SPEC["dividerWidth"], SPEC["width"] * 0.8, 0.004), 0.001),
+            INK,
+            root,
+        )
+        cutters = []
         for side, value in [(-1, left), (1, right)]:
-            for px, py in PIPS[value]:
+            for cell in SPEC["pips"][value]:
+                px, py = cell // 3 - 1, cell % 3 - 1
+                location = (side * SPEC["length"] / 4 + px * SPEC["pipSpacing"], py * SPEC["pipSpacing"], SPEC["height"])
+                bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=SPEC["pipRadius"], depth=0.034, location=location)
+                cutters.append(bpy.context.object)
                 bpy.ops.mesh.primitive_uv_sphere_add(
-                    segments=10, ring_count=6, radius=0.020, location=(side * 0.15 + px * 0.055, py * 0.077, 0.131)
+                    segments=24,
+                    ring_count=12,
+                    radius=SPEC["pipRadius"],
+                    location=(location[0], location[1], SPEC["height"] - 0.013),
                 )
                 pip = finish(bpy.context.object, "Inset pip", INK, root)
-                pip.scale.z = 0.14
+                pip.scale.z = 0.25
+                for polygon in pip.data.polygons:
+                    polygon.use_smooth = True
+        if cutters:
+            bpy.ops.object.select_all(action="DESELECT")
+            for cutter in cutters:
+                cutter.select_set(True)
+            bpy.context.view_layer.objects.active = cutters[0]
+            bpy.ops.object.join()
+            cutter = bpy.context.object
+            bpy.context.view_layer.objects.active = body
+            cut = body.modifiers.new("Recessed pip wells", "BOOLEAN")
+            cut.operation = "DIFFERENCE"
+            cut.object = cutter
+            bpy.ops.object.modifier_apply(modifier=cut.name)
+            bpy.data.objects.remove(cutter, do_unlink=True)
+        bpy.ops.mesh.primitive_uv_sphere_add(
+            segments=24, ring_count=12, radius=SPEC["pinRadius"], location=(0, 0, SPEC["height"] + 0.002)
+        )
+        pin = finish(bpy.context.object, "Brass center pin", BRASS, root)
+        pin.scale.z = 0.5
         root.location = (15 + left, right, 0)
         tiles.extend(set(bpy.context.scene.objects) - before)
 bpy.ops.object.select_all(action="DESELECT")

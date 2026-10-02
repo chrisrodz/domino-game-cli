@@ -1,5 +1,5 @@
 #yard {
-  height: calc(100svh - 292px);
+  height: calc(100svh - 312px);
   min-height: 300px;
   position: relative;
   overflow: hidden;
@@ -64,6 +64,9 @@
   gap: 20px;
 }
 .scene-bottom > p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 11px;
   background: #eeeee1db;
   border-radius: 4px;
@@ -71,6 +74,36 @@
   margin: 0;
   max-width: 45%;
   color: #29402b;
+}
+.scene-bottom .domino-face {
+  width: 17px;
+  height: 34px;
+  flex-shrink: 0;
+}
+.end-port {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-height: 44px;
+  min-width: 64px;
+  padding: 10px 12px;
+  border: 1px solid #d4d9c7;
+  border-radius: 22px;
+  background: var(--paper);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 3px 12px #15281935;
+  z-index: 1;
+}
+.end-port:not(:disabled) {
+  background: #dceaaf;
+  border-color: #dceaaf;
+}
+.end-port:disabled {
+  opacity: 0.86;
+}
+.end-port:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.06);
 }
 .view-controls {
   display: flex;
@@ -154,24 +187,14 @@
 }
 .loading-mark {
   width: 25px;
-  height: 44px;
-  border: 2px solid var(--green);
-  border-radius: 5px;
+  height: 50px;
   animation: load 1.5s ease-in-out infinite;
 }
-.loading-mark:after {
-  content: "";
-  display: block;
-  width: 19px;
-  height: 2px;
-  background: var(--green);
-  margin-top: 19px;
-}
 .hand-area {
-  min-height: 196px;
+  min-height: 216px;
   padding: 27px 42px 22px;
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(300px, 2fr) minmax(220px, 1fr);
+  grid-template-columns: minmax(160px, 1fr) minmax(360px, 2fr) minmax(180px, 1fr);
   gap: 24px;
   align-items: center;
 }
@@ -192,21 +215,22 @@
 .hand {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  min-height: 91px;
+  gap: 10px;
+  min-height: 104px;
   align-items: center;
 }
 .domino {
-  width: 47px;
-  height: 88px;
-  background: #f9f8ee;
-  border: 1px solid #cccdbb;
-  border-bottom: 4px solid #bfc2ae;
-  border-radius: 6px;
-  box-shadow: 1px 3px 4px #2332200a;
-  display: flex;
-  flex-direction: column;
-  padding: 7px 5px;
+  width: 50px;
+  height: 100px;
+  flex-shrink: 0;
+  background: #d6ceb8;
+  border: 0;
+  border-radius: 8px;
+  box-shadow:
+    0 4px 0 #b7ae95,
+    1px 6px 8px #23322020;
+  display: block;
+  padding: 0;
   position: relative;
   color: var(--green);
 }
@@ -216,22 +240,27 @@
   bottom: -21px;
   left: 0;
   right: 0;
-  font-size: 8px;
+  font-size: 10px;
   color: #717b66;
 }
 .domino.legal {
-  border-color: #7a8e61;
-  box-shadow: 0 0 0 2px #8ba26918;
+  box-shadow:
+    0 4px 0 #b7ae95,
+    0 0 0 2px #81954880,
+    1px 6px 8px #23322020;
 }
 .domino.selected {
   transform: translateY(-10px);
-  border-color: #385435;
   box-shadow:
-    0 5px 0 #cad1b8,
-    0 0 0 2px #385435;
+    0 5px 0 #a0af78,
+    0 0 0 3px #385435,
+    0 10px 16px #23322025;
 }
 .domino:not(.legal):not(.selected) {
-  opacity: 0.5;
+  opacity: 0.72;
+}
+.domino:disabled {
+  opacity: 0.72;
 }
 .domino:hover:not(:disabled) {
   transform: translateY(-6px);
@@ -239,32 +268,31 @@
 .domino.selected:hover {
   transform: translateY(-10px);
 }
-.pip-half {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  height: 33px;
-  width: 33px;
-  align-self: center;
-  align-items: center;
-  justify-items: center;
+.domino-face {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
-.pip-half + .pip-half {
-  border-top: 1px solid #c4c8b5;
-  padding-top: 5px;
-  margin-top: 5px;
+.tile-resin {
+  fill: #f5efdc;
+  stroke: #c1b79c;
+  stroke-width: 1.5;
 }
-.pip {
-  height: 4px;
-  width: 4px;
-  border-radius: 50%;
-  background: #273b29;
+.tile-pip {
+  fill: #151b17;
+  stroke: #000;
+  stroke-width: 0.6;
 }
-.pip.empty {
-  background: transparent;
+.tile-divider {
+  fill: #18221a;
+}
+.tile-pin {
+  fill: #b79a53;
+  stroke: #715b29;
+  stroke-width: 0.6;
 }
 .hand-workspace > p {
-  font-size: 10px;
+  font-size: 11px;
   color: #56614f;
   margin: 27px 0 0;
   line-height: 1.4;

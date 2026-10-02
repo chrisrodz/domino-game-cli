@@ -48,9 +48,13 @@ the setting of Bad Bunny's *Debi Tirar Mas Fotos* cover. All scene geometry is
 original, created in Blender; no album artwork or music is included.
 
 Select a highlighted tile in your hand (or on the 3D table), then choose an
-available end. Keys 1-7 select tiles. CPU turns play automatically. Drag to
+available end on the table or below your hand. A tile matching both ends can
+be played on either side, even when the open values are equal. Keys 1-7 select
+tiles. CPU turns play automatically. Drag to
 orbit, scroll or pinch to zoom, or choose **Table view** for an overhead camera.
 **New game** offers a single round or a target score from 1 to 1000.
+After a round, **View board** reveals the completed snake and remaining
+hands. **Round score** brings the result back.
 
 The browser uses the Python game's dealing, valid moves, CPU strategy, and
 scoring. Blocked rounds award all unplayed pips, including the winning hand;
@@ -68,6 +72,11 @@ To rebuild the two GLB files with Blender 4.5 or later:
 ```bash
 blender --background --python tools/build_patio.py
 ```
+
+The Blender meshes and UI faces share `assets/domino-spec.json` for tile
+proportions and pip positions. The board anchors the opening tile, places
+doubles across the chain, and bends using the matching half of each tile.
+Tiles touch without overlapping; long snakes scale together to fit the table.
 
 The browser renderer is Three.js 0.186.1 (MIT), vendored with its license in
 `domino_game/patio/web/vendor/`. The existing terminal commands remain available.
@@ -179,6 +188,12 @@ Run with coverage:
 
 ```bash
 uv run pytest --cov=domino_game --cov-report=term-missing
+```
+
+The 3D board geometry uses Node's built-in test runner, with no npm dependencies:
+
+```bash
+node --test tests/test_patio_layout.mjs
 ```
 
 Continuous Integration runs automatically on:

@@ -5,9 +5,9 @@
 :root {
   font-family: Arial, Helvetica, sans-serif;
   color: #26372a;
-  background: #eeeee1;
+  background: #f1eee2;
   font-synthesis: none;
-  --paper: #eeeee1;
+  --paper: #f1eee2;
   --green: #284731;
   --muted: #56614f;
   --line: #d0d4c4;
@@ -25,6 +25,7 @@ select {
 }
 button {
   cursor: pointer;
+  min-height: 44px;
 }
 button:disabled {
   cursor: default;
@@ -79,29 +80,9 @@ button:hover:not(:disabled) {
 }
 .brand-mark {
   width: 24px;
-  height: 42px;
-  border: 1.5px solid var(--green);
-  border-radius: 4px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  justify-items: center;
-  position: relative;
+  height: 48px;
+  flex-shrink: 0;
   transform: rotate(-12deg);
-}
-.brand-mark:after {
-  content: "";
-  width: 19px;
-  height: 1px;
-  background: var(--green);
-  position: absolute;
-  top: 20px;
-}
-.brand-mark i {
-  height: 4px;
-  width: 4px;
-  border-radius: 50%;
-  background: var(--green);
 }
 .scoreboard {
   display: flex;
@@ -149,6 +130,9 @@ nav {
   padding: 12px 0;
   font-size: 12px;
   color: var(--green);
+}
+.rules-short {
+  display: none;
 }
 .outline-button,
 .primary-button,
@@ -221,7 +205,7 @@ dialog li {
 }
 .dialog-close {
   float: right;
-  padding: 0;
+  padding: 0 8px;
   background: none;
   border: 0;
   color: var(--muted);
@@ -277,6 +261,9 @@ select {
   border-radius: 6px;
   width: 440px;
   max-width: calc(100% - 32px);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 2;
   backdrop-filter: blur(10px);
 }
@@ -302,6 +289,11 @@ select {
 }
 .result .primary-button {
   width: 100%;
+}
+.result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 #error {
   position: fixed;

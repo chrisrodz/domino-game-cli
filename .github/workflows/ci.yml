@@ -35,6 +35,14 @@ jobs:
         run: |
           uv run python main.py --help
 
+      - name: Set up Node for board geometry tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify 3D domino layout
+        run: node --test tests/test_patio_layout.mjs
+
   lint:
     runs-on: ubuntu-latest
 

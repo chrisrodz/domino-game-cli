@@ -7,15 +7,7 @@
   }
   .domino {
     width: 55px;
-    height: 100px;
-  }
-  .pip-half {
-    width: 38px;
-    height: 38px;
-  }
-  .pip {
-    width: 5px;
-    height: 5px;
+    height: 110px;
   }
 }
 @media (max-width: 1050px) {
@@ -34,14 +26,15 @@
   }
   .hand-area {
     padding: 25px 24px;
-    grid-template-columns: 170px 1fr 185px;
+    grid-template-columns: 150px 1fr 170px;
     gap: 16px;
   }
   .hand {
     gap: 8px;
   }
   .domino {
-    width: 43px;
+    width: 46px;
+    height: 92px;
   }
   .hand-caption h2 {
     font-size: 23px;
@@ -83,11 +76,7 @@
   }
   .brand-mark {
     width: 19px;
-    height: 34px;
-  }
-  .brand-mark:after {
-    width: 15px;
-    top: 16px;
+    height: 38px;
   }
   .brand {
     gap: 10px;
@@ -175,7 +164,7 @@
     display: none;
   }
   .hand-area {
-    padding: 17px 20px 18px;
+    padding: 17px 16px 18px;
     grid-template-columns: 1fr auto;
     gap: 12px;
     min-height: 228px;
@@ -195,25 +184,22 @@
     grid-column: 1/-1;
   }
   .hand {
-    gap: 10px;
+    gap: 5px;
+    width: max-content;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 12px 4px 25px;
+    overflow-x: auto;
+    justify-content: flex-start;
   }
   .domino {
-    width: 41px;
-    height: 77px;
-    padding: 5px 4px;
-    border-bottom-width: 3px;
-  }
-  .pip-half {
-    width: 29px;
-    height: 28px;
-  }
-  .pip {
-    width: 3.5px;
-    height: 3.5px;
+    width: 44px;
+    height: 88px;
+    padding: 0;
   }
   .hand-workspace > p {
-    font-size: 9px;
-    margin: 25px 0 0;
+    font-size: 10px;
+    margin: 7px 0 0;
   }
   .move-actions {
     display: flex;
@@ -232,7 +218,7 @@
     margin: 0 1px;
   }
   .move-actions button {
-    font-size: 10px;
+    font-size: 11px;
     padding: 9px;
   }
   #placement {
@@ -269,23 +255,38 @@
   }
 }
 @media (max-width: 390px) {
+  .rules-long {
+    display: none;
+  }
+  .rules-short {
+    display: inline;
+  }
   .topbar {
     padding-left: 15px;
     padding-right: 15px;
-    gap: 10px;
+    gap: 8px;
   }
   nav {
-    gap: 10px;
+    gap: 8px;
+  }
+  .brand {
+    gap: 8px;
+  }
+  .brand h1 {
+    font-size: 29px;
+  }
+  nav .outline-button {
+    padding-inline: 8px;
   }
   .hand-area {
     padding-left: 12px;
     padding-right: 12px;
   }
   .hand {
-    gap: 6px;
+    gap: 4px;
   }
   .domino {
-    width: 39px;
+    width: 44px;
   }
   .scene-heading .eyebrow {
     max-width: 110px;
