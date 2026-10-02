@@ -50,11 +50,18 @@ original, created in Blender; no album artwork or music is included.
 Select a highlighted tile in your hand (or on the 3D table), then choose an
 available end on the table or below your hand. A tile matching both ends can
 be played on either side, even when the open values are equal. Keys 1-7 select
-tiles. CPU turns play automatically. Drag to
-orbit, scroll or pinch to zoom, or choose **Table view** for an overhead camera.
+tiles. With a mouse, drag a hand tile to a highlighted end and release to play.
+Hover or focus an end to preview the exact placement; releasing elsewhere cancels
+the drag. On touch screens, tap a tile and an end. CPU turns play automatically.
+Drag the patio to orbit, scroll or pinch to zoom, or choose **Table view** for an overhead camera.
 **New game** offers a single round or a target score from 1 to 1000.
 After a round, **View board** reveals the completed snake and remaining
 hands. **Round score** brings the result back.
+**La libreta** records each finished hand, its points, and running team totals.
+The notebook stays with the match across rounds and browser refreshes.
+**Table sounds** enables short tile slaps and a cue for your turn. Sound starts
+off; your preference is remembered by the browser. Tile motion follows the
+playing seat, and respects the browser's reduced-motion preference.
 
 The browser uses the Python game's dealing, valid moves, CPU strategy, and
 scoring. Blocked rounds award all unplayed pips, including the winning hand;

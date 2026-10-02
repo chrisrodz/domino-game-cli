@@ -4,6 +4,7 @@ import { GLTFLoader } from "/vendor/loaders/GLTFLoader.js";
 import { mergeGeometries } from "/vendor/utils/BufferGeometryUtils.js";
 import { RoomEnvironment } from "/vendor/environments/RoomEnvironment.js";
 import { layoutBoard } from "./domino-layout.js";
+import { previewPlacement } from "./placement-preview.js";
 
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const seatLocations = [
@@ -14,11 +15,16 @@ const seatLocations = [
 ];
 
 export class PatioScene {
-  constructor(canvas, { onSelect, onPlace, spec }) {
+  constructor(canvas, { onSelect, onPlace, onLand, spec }) {
     this.canvas = canvas;
     this.onSelect = onSelect;
+    this.onLand = onLand;
     this.spec = spec;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      powerPreference: "high-performance",
+    });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -49,7 +55,14 @@ export class PatioScene {
     sun.position.set(-5, 11, 5);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 0.5, far: 35 });
+    Object.assign(sun.shadow.camera, {
+      left: -12,
+      right: 12,
+      top: 12,
+      bottom: -12,
+      near: 0.5,
+      far: 35,
+    });
     sun.shadow.bias = -0.0002;
     sun.shadow.normalBias = 0.006;
     sun.shadow.radius = 3;
@@ -140,7 +153,11 @@ export class PatioScene {
       node.traverse((child) => {
         if (!child.isMesh) return;
         if (!parts.has(child.material.uuid))
-          parts.set(child.material.uuid, { material: child.material, geometries: [], name: child.name });
+          parts.set(child.material.uuid, {
+            material: child.material,
+            geometries: [],
+            name: child.name,
+          });
         const local = new THREE.Matrix4().multiplyMatrices(inverse, child.matrixWorld);
         parts.get(child.material.uuid).geometries.push(child.geometry.clone().applyMatrix4(local));
       });
@@ -182,12 +199,64 @@ export class PatioScene {
   remove(group) {
     this.scene.remove(group);
     group.traverse((node) => {
-      if (node.isMesh && node.name.startsWith("Domino_body")) node.material.dispose();
+      if (node.isMesh && (group.userData.preview || node.name.startsWith("Domino_body"))) node.material.dispose();
     });
+  }
+
+  positionBoard(layout) {
+    for (const placement of layout.tiles) {
+      const group = this.boardTiles.get(placement.id);
+      group.userData.target = new THREE.Vector3(placement.x, 1.83, placement.z);
+      group.userData.angle = placement.angle;
+      group.scale.setScalar(layout.scale);
+      if (!group.userData.flight) {
+        group.position.copy(group.userData.target);
+        group.rotation.set(0, placement.angle, 0);
+      }
+    }
+  }
+
+  clearPreview() {
+    if (!this.ghost) return;
+    this.remove(this.ghost);
+    this.ghost = null;
+    this.positionBoard(this.layout);
+  }
+
+  preview(tileId, position) {
+    this.clearPreview();
+    if (!tileId || !position || !this.state) return;
+    const candidate = previewPlacement(this.state, {
+      tileId,
+      position,
+      spec: this.spec,
+    });
+    if (!candidate) return;
+    // Preview the whole candidate layout; long chains may recenter or scale on placement.
+    this.positionBoard({
+      ...candidate.layout,
+      tiles: candidate.layout.tiles.filter((tile) => tile.id !== tileId),
+    });
+    const tile = candidate.board.find((tile) => tile.id === tileId);
+    const placement = candidate.layout.tiles.find((tile) => tile.id === tileId);
+    this.ghost = this.tile(tile);
+    this.ghost.userData.preview = true;
+    this.ghost.traverse((node) => {
+      if (!node.isMesh) return;
+      if (!node.name.startsWith("Domino_body")) node.material = node.material.clone();
+      node.material.transparent = true;
+      node.material.opacity = 0.62;
+      node.material.depthWrite = false;
+      node.castShadow = false;
+    });
+    this.ghost.position.set(placement.x, 1.83, placement.z);
+    this.ghost.rotation.y = placement.angle;
+    this.ghost.scale.setScalar(candidate.layout.scale);
   }
 
   update(state, { selected, busy }) {
     if (!this.templates.size) return;
+    this.clearPreview();
     this.selection = selected;
     const boardIds = new Set(state.board.map((tile) => tile.id));
     for (const [id, group] of this.boardTiles) {
@@ -196,23 +265,40 @@ export class PatioScene {
         this.boardTiles.delete(id);
       }
     }
-    this.layout = layoutBoard(state.board, { spec: this.spec, opening: state.opening });
-    const path = this.layout.tiles;
-    state.board.forEach((tile, index) => {
+    this.layout = layoutBoard(state.board, {
+      spec: this.spec,
+      opening: state.opening,
+    });
+    state.board.forEach((tile) => {
       let group = this.boardTiles.get(tile.id);
       if (!group) {
         group = this.tile(tile);
-        group.position.set(path[index].x, reducedMotion ? 1.83 : 2.5, path[index].z);
+        const event = state.history.at(-1);
+        const fresh = this.state?.round === state.round && this.state.board.length + 1 === state.board.length;
+        if (fresh && event?.tile?.id === tile.id) {
+          const handTile = this.handTiles.get(tile.id);
+          const from =
+            handTile?.position.clone() ??
+            new THREE.Vector3(
+              event.player === 1 ? 2.78 : event.player === 3 ? -2.78 : 0,
+              1.95,
+              event.player === 2 ? -2.55 : 0,
+            );
+          group.userData.flight = {
+            from,
+            angle: handTile?.rotation.y ?? (event.player === 2 ? Math.PI / 2 : 0),
+            flip: event.player ? Math.PI : 0,
+            start: performance.now(),
+          };
+          if (reducedMotion) {
+            group.userData.flight = null;
+            this.onLand();
+          }
+        }
         this.boardTiles.set(tile.id, group);
       }
-      const { x, z, angle } = path[index];
-      group.userData.target = new THREE.Vector3(x, 1.83, z);
-      // Keep the existing chain touching while the newly played tile drops into place.
-      group.position.x = x;
-      group.position.z = z;
-      group.rotation.y = angle;
-      group.scale.setScalar(this.layout.scale);
     });
+    this.positionBoard(this.layout);
     const hand = state.players[0].hand;
     const handIds = new Set(hand.map((tile) => tile.id));
     for (const [id, group] of this.handTiles) {
@@ -244,7 +330,9 @@ export class PatioScene {
     for (let player = 1; player < 4; player++) {
       for (let i = 0; i < state.players[player].count; i++) {
         const reveal = state.players[player].hand;
-        const group = this.tile(reveal ? reveal[i] : { id: "0-0" }, { hidden: !reveal });
+        const group = this.tile(reveal ? reveal[i] : { id: "0-0" }, {
+          hidden: !reveal,
+        });
         const offset = (i - (state.players[player].count - 1) / 2) * 0.37;
         if (player === 2) {
           group.position.set(-offset, reveal ? 1.83 : 1.83 + this.spec.height, -2.55);
@@ -270,6 +358,7 @@ export class PatioScene {
       button.textContent = `${end === "left" ? "Left" : "Right"} \u00b7 ${state.ends[end] ?? "-"}`;
       button.setAttribute("aria-label", `Play ${selected ?? "a tile"} on the ${end} end, matching ${state.ends[end]}`);
     });
+    this.state = state;
   }
 
   setView(overhead) {
@@ -295,7 +384,21 @@ export class PatioScene {
       }
     }
     for (const group of this.boardTiles.values()) {
-      if (group.userData.target) group.position.lerp(group.userData.target, reducedMotion ? 1 : 0.17);
+      const flight = group.userData.flight;
+      if (!flight) continue;
+      const progress = Math.min(1, (time - flight.start) / 380);
+      const eased = 1 - (1 - progress) ** 3;
+      group.position.copy(flight.from).lerp(group.userData.target, eased);
+      group.position.y += Math.sin(progress * Math.PI) * 0.6;
+      const delta = Math.atan2(
+        Math.sin(group.userData.angle - flight.angle),
+        Math.cos(group.userData.angle - flight.angle),
+      );
+      group.rotation.set(flight.flip * (1 - eased), flight.angle + delta * eased, 0);
+      if (progress === 1) {
+        group.userData.flight = null;
+        this.onLand();
+      }
     }
     if (!reducedMotion)
       this.foliage.forEach((mesh) => {

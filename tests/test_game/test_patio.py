@@ -113,6 +113,12 @@ def test_four_passes_score_block_once_and_reveal_hands(session):
         session.step_cpu()
     assert session.result == {"team": 0, "points": 10, "blocked": True}
     assert game.team_scores == [10, 0]
+    book = session.snapshot()["rounds"]
+    assert len(book) == 1
+    assert book[0]["blocked"] is True
+    assert book[0]["winner"] is None
+    assert book[0]["scores"] == [10, 0]
+    assert sum(hand["value"] for hand in book[0]["unplayed"]) == book[0]["points"]
     assert all(player["hand"] is not None for player in session.snapshot()["players"])
     with pytest.raises(MoveError, match="ended"):
         session.step_cpu()
@@ -122,6 +128,11 @@ def test_four_passes_score_block_once_and_reveal_hands(session):
     assert session.game.team_scores == [10, 0]
     assert session.game.board.is_empty()
     assert all(len(player.hand) == 7 for player in session.game.players)
+    assert session.snapshot()["rounds"] == book
+    book[0]["scores"][0] = -1
+    book[0]["unplayed"][0]["value"] = -1
+    assert session.snapshot()["rounds"][0]["scores"] == [10, 0]
+    assert session.snapshot()["rounds"][0]["unplayed"][0]["value"] == 1
 
 
 def test_going_out_uses_existing_scorer_and_finishes_single_round():
@@ -134,6 +145,8 @@ def test_going_out_uses_existing_scorer_and_finishes_single_round():
     session.play("1-6", "left")
     assert game.team_scores == [18, 0]
     assert session.phase == "match_over"
+    assert session.snapshot()["rounds"][0]["winner"] == "You"
+    assert session.snapshot()["rounds"][0]["points"] == 18
     with pytest.raises(MoveError, match="next round"):
         session.next_round()
 
@@ -145,6 +158,13 @@ def test_complete_matches_conserve_tiles_and_keep_chain_connected(monkeypatch, s
     for _ in range(1000):
         if session.phase == "match_over":
             assert max(session.game.team_scores) >= 100
+            totals = [0, 0]
+            for number, hand in enumerate(session.snapshot()["rounds"], 1):
+                assert hand["round"] == number
+                assert sum(player["value"] for player in hand["unplayed"]) == hand["points"]
+                totals[hand["team"]] += hand["points"]
+                assert hand["scores"] == totals
+            assert totals == session.game.team_scores
             return
         if session.phase == "round_over":
             session.next_round()
@@ -233,3 +253,29 @@ def test_invalid_http_payload_does_not_replace_match(http_game):
     assert error.value.code == 400
     with client.open(url + "/api/state") as response:
         assert json.load(response) == before
+
+
+def test_scorebook_survives_http_refresh_and_resets_with_new_match(http_game):
+    client, url = http_game
+    with client.open(url + "/api/state") as response:
+        state = json.load(response)
+    for _ in range(100):
+        if state["phase"] != "playing":
+            break
+        payload = {"revision": state["revision"]}
+        if state["turn"]:
+            path = "step"
+        elif state["moves"]:
+            path = "move"
+            payload.update(state["moves"][0])
+        else:
+            path = "pass"
+        with post(client, url, f"/api/{path}", payload) as response:
+            state = json.load(response)
+    assert len(state["rounds"]) == 1
+    with client.open(url + "/api/state") as response:
+        assert json.load(response)["rounds"] == state["rounds"]
+    with post(client, url, "/api/game", {"target": 200}) as response:
+        replacement = json.load(response)
+    assert replacement["rounds"] == []
+    assert replacement["scores"] == [0, 0]

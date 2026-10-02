@@ -1,5 +1,6 @@
 """Non-blocking turns around the CLI's game, models, AI, and scoring."""
 
+from copy import deepcopy
 from typing import Any
 
 from domino_game.game.engine import Game
@@ -28,6 +29,7 @@ class PatioSession:
         self.phase = "playing"
         self.result = None
         self.history: list[dict[str, Any]] = []
+        self.rounds: list[dict[str, Any]] = []
         self.revision = 0
         self._deal()
 
@@ -101,6 +103,17 @@ class PatioSession:
             match_over = game.game_mode == "single_round" or max(game.team_scores) >= game.target_score
             self.phase = "match_over" if match_over else "round_over"
             self.result = {"team": team, "points": points, "blocked": game.consecutive_passes >= 4}
+            self.rounds.append(
+                {
+                    "round": game.round_number,
+                    **self.result,
+                    "scores": game.team_scores.copy(),
+                    "winner": player.name if player.is_out() else None,
+                    "unplayed": [
+                        {"name": participant.name, "value": participant.hand_value()} for participant in game.players
+                    ],
+                }
+            )
         else:
             game.current_player_idx = (game.current_player_idx + 1) % 4
 
@@ -138,4 +151,5 @@ class PatioSession:
             "moves": [{"tile": tile_data(tile)["id"], "position": position} for tile, position in moves],
             "history": self.history[-12:],
             "result": self.result,
+            "rounds": deepcopy(self.rounds),
         }
