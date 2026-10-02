@@ -1,6 +1,6 @@
 """Player model and player type enum."""
 
-from enum import Enum
+from enum import Enum, StrEnum
 
 from domino_game.models.domino import Domino
 
@@ -10,13 +10,20 @@ class PlayerType(Enum):
     CPU = "cpu"
 
 
+class AIDifficulty(StrEnum):
+    SIMPLE = "simple"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+
 class Player:
     """Represents a player in the game."""
 
-    def __init__(self, name: str, player_type: PlayerType, team: int):
+    def __init__(self, name: str, player_type: PlayerType, team: int, ai_difficulty: AIDifficulty = AIDifficulty.SIMPLE):
         self.name = name
         self.player_type = player_type
         self.team = team  # 0 or 1
+        self.ai_difficulty = ai_difficulty
         self.hand: list[Domino] = []
         self.passed_last_turn = False
 

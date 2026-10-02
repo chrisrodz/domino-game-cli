@@ -33,6 +33,7 @@ class PlayerDisplay:
         name_text = Text()
         name_text.append(player.name, style="bold white")
         name_text.append(f" (Team {player.team + 1})", style="dim")
+        name_text.append(f"\nAI: {player.ai_difficulty.value}", style="dim")
 
         # Tile information
         tile_text = Text()

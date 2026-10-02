@@ -9,6 +9,7 @@ A beautiful, interactive CLI application to play Caribbean dominoes and learn ho
 - **🎨 Beautiful Interface**: Rich, colorful terminal output with panels, tables, and emojis
 - **⌨️ Arrow Key Navigation**: Navigate menus using ↑↓ arrow keys or Vim-style j/k keys
 - **🤖 Smart CPU Opponents**: Play against intelligent CPU players
+- **CPU Difficulty per Player**: Simple local play, Medium Jev decisions, or Hard Jev decisions with public turn history
 - **👥 Team-Based Gameplay**: 2v2 teams (You + Ally vs 2 Opponents)
 - **📊 Real-Time Scoring**: Track scores and progress throughout the game
 - **🎯 Multiple Game Modes**: Standard and quick play modes
@@ -43,6 +44,41 @@ uv run python main.py play --quick
 # Custom target score
 uv run python main.py play --target 150
 ```
+
+### CPU Difficulty
+
+Choose a difficulty separately for your ally and each opponent in the setup menu, or use flags:
+
+```bash
+uv run python main.py play --single-round --ally hard --opponent-1 medium --opponent-2 simple
+```
+
+All CPUs default to `simple`. Any explicit game or CPU flag skips the setup menu; unspecified CPUs remain `simple`.
+
+| Difficulty | Decision method | Available information |
+|------------|-----------------|-----------------------|
+| `simple` | Local greedy strategy: highest pip value, with a bonus for doubles | Own hand and legal moves |
+| `medium` | TypeSafe Jev | Own hand, current board, public tile counts, team scores, and rules |
+| `hard` | TypeSafe Jev | Medium's information plus all public turns and round results so far |
+
+Medium receives no remembered passes, ordered move history, or history-derived features. Hard remembers who played or
+passed and the board ends at each turn. Pass deductions apply only to the current deal. Previous rounds stay in its
+history, but their missing-number deductions expire when tiles are redealt. Neither Jev level receives another player's
+hidden tiles or unrevealed hand value. Public blocked-round hand totals are recorded only after they are displayed.
+
+Medium and Hard require internet access and `TYPESAFE_API_KEY` in your environment. Create a key at the
+[TypeSafe console](https://console.typesafe.ai/keys). The integration uses the official Python SDK and its model default;
+`TYPESAFE_DEFAULT_MODEL` can override the model. Credentials stay in the environment, outside the repository.
+
+The engine computes exact legal options and their immediate consequences, then asks Jev to select one complete tile/side
+move. Forced moves and passes make no API request. HTTP operations use a two-second timeout without retries. A timeout,
+service failure, or invalid answer uses Simple for that turn, with a visible fallback message. Credential or request
+configuration errors stop the game with an actionable message. Difficulty labels describe the available information;
+comparative playing strength has not been benchmarked.
+
+AI follows the engine's current rules: later rounds start at seat 0; an empty board offers double-six if held, otherwise
+the first tile in the starting hand. Blocked rounds award all remaining pips, including the winner's, with ties favoring
+the last-playing team. This AI change preserves those behaviors.
 
 ### View Commands
 
@@ -150,7 +186,7 @@ CI runs tests and lint checks on Python 3.14.8, using the same `.python-version`
 
 | Command | Options | Description |
 |---------|---------|-------------|
-| `play` | `--target/-t`, `--quick/-q` | Start a new game |
+| `play` | `--target/-t`, `--quick/-q`, `--single-round/-s`, `--skip-setup`, `--ally`, `--opponent-1`, `--opponent-2` | Start a new game with independent CPU difficulties |
 | `rules` | - | Display game rules |
 | `about` | - | About the application |
 

@@ -9,6 +9,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from domino_game.game.ai import CPUSettings
+from domino_game.models.player import AIDifficulty
+
 
 @dataclass
 class SetupConfig:
@@ -16,6 +19,7 @@ class SetupConfig:
 
     game_mode: Literal["target_score", "single_round"]
     target_score: int
+    cpu_settings: CPUSettings = CPUSettings()
 
 
 class SetupMenu:
@@ -28,6 +32,7 @@ class SetupMenu:
         self.console = console or Console()
         self.game_mode = "target_score"
         self.target_score = 200
+        self.cpu_settings = CPUSettings()
 
     def run(self) -> SetupConfig:
         """Run the setup menu and return configuration."""
@@ -98,6 +103,20 @@ class SetupMenu:
 
         self.console.print()
 
+        self.console.print("[bold yellow]CPU Difficulty[/bold yellow]")
+        self.console.print("Simple: local greedy play. Medium: Jev with current table. Hard: Jev with public turn history.")
+        levels = {}
+        for field, label in (("ally", "Ally"), ("opponent_1", "Opponent 1"), ("opponent_2", "Opponent 2")):
+            while True:
+                choice = self.console.input(f"{label} (simple/medium/hard) [simple]: ").strip().lower() or "simple"
+                try:
+                    levels[field] = AIDifficulty(choice)
+                    break
+                except ValueError:
+                    self.console.print("[red]Choose simple, medium, or hard.[/red]")
+        self.cpu_settings = CPUSettings(**levels)
+        self.console.print()
+
         # Show configuration summary
         summary = Panel(self._render_config_summary(), title="Configuration", border_style="green", box=ROUNDED)
         self.console.print(summary)
@@ -106,7 +125,7 @@ class SetupMenu:
         self.console.input("[dim]Press Enter to start the game...[/dim]")
         self.console.clear()
 
-        return SetupConfig(game_mode=self.game_mode, target_score=self.target_score)
+        return SetupConfig(game_mode=self.game_mode, target_score=self.target_score, cpu_settings=self.cpu_settings)
 
     def _render_config_summary(self) -> Text:
         """Render configuration summary."""
@@ -121,4 +140,7 @@ class SetupMenu:
             summary.append("Game Mode: ", style="bold")
             summary.append("Single Round", style="cyan")
 
+        summary.append(f"\nAlly: {self.cpu_settings.ally.value}\n")
+        summary.append(f"Opponent 1: {self.cpu_settings.opponent_1.value}\n")
+        summary.append(f"Opponent 2: {self.cpu_settings.opponent_2.value}")
         return summary
