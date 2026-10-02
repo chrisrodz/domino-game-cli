@@ -56,6 +56,39 @@ def test_valid_move_consumes_one_tile_and_rotates_turn(session):
     assert after["revision"] == before["revision"] + 1
 
 
+def test_opening_anchor_survives_left_placements_and_history_truncation(session):
+    assert session.snapshot()["opening"] is None
+    game = session.game
+    game.current_player_idx = 0
+    game.players[0].hand = [Domino(6, 6), Domino(1, 6), Domino(0, 0)]
+    session.play("6-6", "first")
+    game.current_player_idx = 0
+    session.play("1-6", "left")
+    session.history.extend([{"type": "pass"}] * 12)
+    snapshot = session.snapshot()
+    assert snapshot["opening"] == "6-6"
+    assert snapshot["board"][0]["id"] == "1-6"
+    assert not any(event.get("position") == "first" for event in snapshot["history"])
+    session.phase = "round_over"
+    session.next_round()
+    assert session.snapshot()["opening"] is None
+
+
+@pytest.mark.parametrize(
+    "ends,tile", [(Domino(6, 6), Domino(1, 6)), (Domino(2, 6), Domino(2, 6)), (Domino(3, 3), Domino(3, 3))]
+)
+@pytest.mark.parametrize("position", ["left", "right"])
+def test_tile_matching_both_ends_can_be_played_on_either_side(session, ends, tile, position):
+    session.game.current_player_idx = 0
+    session.game.board.play_domino(ends)
+    session.game.players[0].hand = [tile, Domino(0, 0)]
+    moves = session.snapshot()["moves"]
+    assert {move["position"] for move in moves if move["tile"] == tile_data(tile)["id"]} == {"left", "right"}
+    session.play(tile_data(tile)["id"], position)
+    assert len(session.game.board.dominoes) == 2
+    assert session.game.board.dominoes[0].right == session.game.board.dominoes[1].left
+
+
 def test_pass_is_allowed_only_without_moves(session):
     game = session.game
     game.current_player_idx = 0

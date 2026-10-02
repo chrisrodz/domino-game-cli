@@ -43,6 +43,7 @@ class PatioSession:
         self.phase = "playing"
         self.result = None
         self.history = []
+        self.opening = None
         self.revision += 1
 
     def _require_turn(self, *, human: bool) -> None:
@@ -83,6 +84,8 @@ class PatioSession:
             if not game.board.play_domino(tile, on_left=position == "left"):
                 raise MoveError(f"Board rejected tile {tile} on {position}; no turn was consumed.")
             player.remove_domino(tile)
+            if position == "first":
+                self.opening = tile_data(tile)["id"]
             player.passed_last_turn = False
             game.consecutive_passes = 0
             game.last_played_team = player.team
@@ -119,6 +122,7 @@ class PatioSession:
             "turn": game.current_player_idx,
             "scores": game.team_scores.copy(),
             "board": [tile_data(tile) for tile in game.board.dominoes],
+            "opening": self.opening,
             "ends": {"left": game.board.left_value(), "right": game.board.right_value()},
             "players": [
                 {
