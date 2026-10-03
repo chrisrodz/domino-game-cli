@@ -39,6 +39,7 @@ uv run python main.py patio
 # Optional: custom score, single round, or another local port
 uv run python main.py patio --target 100
 uv run python main.py patio --single-round
+uv run python main.py patio --autoplay   # watch four CPUs play
 uv run python main.py patio --port 8001 --no-browser
 ```
 
@@ -47,13 +48,33 @@ sunlit backyard table, with white plastic chairs and banana plants inspired by
 the setting of Bad Bunny's *Debi Tirar Mas Fotos* cover. All scene geometry is
 original, created in Blender; no album artwork or music is included.
 
-Select a highlighted tile in your hand (or on the 3D table), then choose an
-available end on the table or below your hand. A tile matching both ends can
-be played on either side, even when the open values are equal. Keys 1-7 select
-tiles. With a mouse, drag a hand tile to a highlighted end and release to play.
-Hover or focus an end to preview the exact placement; releasing elsewhere cancels
-the drag. On touch screens, tap a tile and an end. CPU turns play automatically.
-Drag the patio to orbit, scroll or pinch to zoom, or choose **Table view** for an overhead camera.
+Every action happens on the table or the keyboard. Your seven tiles stand at
+your edge of the table, numbered 1-7 from your left; playable ones glow. Click a
+tile, then a glowing end (`L` or `R`). Click the selected tile again to play it
+when only one end fits. A tile matching both ends can go on either side, even
+when the open values are equal. When you open a round, a **Lead** button
+appears at the center. Hover or focus an end to preview the exact placement.
+CPU turns play automatically. Drag the patio to orbit, scroll or pinch to zoom,
+or choose **Table view** for an overhead camera.
+
+| Key | Action |
+| --- | --- |
+| `1`-`7` | Select a tile |
+| `Left` / `Right` | Step through playable tiles |
+| `L` / `R` | Play the selected tile on the left / right end |
+| `Enter` | Play or lead when only one end fits |
+| `P` | Pass (only when nothing fits) |
+| `N` | Next round, or a new game after the match |
+| `Esc` | Clear the selection |
+| `A` | Autoplay: CPUs play every seat, yours included |
+| `Z` | Zen mode: hide everything but the table |
+| `T` / `B` / `S` | Table view / La libreta / sound |
+| `?` | Show all shortcuts |
+
+**Autoplay** (`A`, the setup dialog, or `--autoplay`) hands your seat to the CPU
+and deals each next round on its own, so you can watch whole matches quickly.
+**Zen mode** (`Z`) keeps only the table, a score and round chip, and the Zen
+toggle; the browser remembers it.
 **New game** offers a single round or a target score from 1 to 1000.
 After a round, **View board** reveals the completed snake and remaining
 hands. **Round score** brings the result back.
@@ -63,10 +84,9 @@ The notebook stays with the match across rounds and browser refreshes.
 off; your preference is remembered by the browser. Tile motion follows the
 playing seat, and respects the browser's reduced-motion preference.
 
-The browser uses the Python game's dealing, valid moves, CPU strategy, and
-scoring. Blocked rounds award all unplayed pips, including the winning hand;
-ties favor the team that last played. Later rounds use the CLI's current opener
-behavior (You start). Refreshing retains the game while the server runs.
+The browser, the terminal game, and the simulator share one headless engine
+(`domino_game/game/match.py`) that follows the Puerto Rican Doscientos rules
+below. Refreshing retains the game while the server runs.
 Stopping the server clears games. Each browser session gets a separate match.
 
 Requires a browser with WebGL 2. The Python server binds only to loopback;
@@ -99,6 +119,19 @@ Tiles touch without overlapping; long snakes scale together to fit the table.
 
 The browser renderer is Three.js 0.186.1 (MIT), vendored with its license in
 `domino_game/patio/web/vendor/`. The existing terminal commands remain available.
+
+### Audit the rules with all-CPU matches
+
+```bash
+uv run python main.py simulate --matches 1000 --seed 1
+```
+
+Plays complete matches with every seat on the CPU, with no rendering or delays
+(about 7 seconds per 1,000 matches). An independent referee
+(`domino_game/game/referee.py`) replays each round from its deal and checks
+every turn, pass, round result, next leader, and running score. The command
+reports tranque and win rates, and exits non-zero on any violation. CI runs
+500 matches on every push.
 
 ### Start a Game
 
@@ -134,21 +167,26 @@ uv run python main.py about
 
 ## 📖 Game Rules
 
+Puerto Rican partnership dominoes, *Doscientos*:
+
 ### Setup
-- 4 players in 2 teams (You + Ally vs 2 Opponents)
-- Each player gets 7 dominoes from a double-six set
-- First round starts with the [6|6] domino
+- 4 players in 2 teams (You + Ally vs 2 Opponents), partners sit across
+- All 28 tiles of a double-six set are dealt, 7 each; there is no boneyard
+- Round 1: whoever holds [6|6] opens with it
+- Later rounds: the winner of the previous round opens with any tile
 
 ### Gameplay
 - Players take turns counter-clockwise
-- Match your domino to either end of the line
-- If you can't play, you must pass
-- Round ends when someone plays all dominoes or all players pass
+- Match a tile to either end of the line; if nothing fits, pass
+- A round ends when a player empties their hand (*domino*) or when no one can
+  play (*tranque*), which is known as soon as the closing tile lands
 
 ### Scoring
-- Winner scores the sum of all remaining dominoes in other players' hands
-- If game is blocked, player with lowest hand value wins
-- First team to reach target score (default: 200) wins!
+- Domino: the winner's team scores every pip still held by all four players
+- Tranque: the team holding fewer pips scores every pip on the table, and its
+  player with fewer pips opens next; if the teams tie, the team that closed the
+  game wins and the closer opens next
+- First team to reach the target score (default: 200) wins
 
 ## 🛠️ Technology Stack
 
@@ -226,6 +264,8 @@ The CI tests the package on Python 3.9, 3.10, 3.11, and 3.12.
 | Command | Options | Description |
 |---------|---------|-------------|
 | `play` | `--target/-t`, `--quick/-q` | Start a new game |
+| `patio` | `--target`, `--single-round`, `--autoplay`, `--port`, `--no-browser` | Play in the 3D browser patio |
+| `simulate` | `--matches/-n`, `--target`, `--single-round`, `--seed` | Audit all-CPU matches against the rules |
 | `rules` | - | Display game rules |
 | `about` | - | About the application |
 

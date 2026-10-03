@@ -4,6 +4,8 @@ const cell = (text, tag = "td") => {
   return node;
 };
 
+export const clearedHand = (name) => (name === "You" ? "You cleared your hand." : `${name} cleared their hand.`);
+
 export function renderScorebook(state) {
   const rounds = state.rounds ?? [];
   const body = document.querySelector("#scorebook-rows");
@@ -22,7 +24,7 @@ export function renderScorebook(state) {
         score.append(total);
         row.append(score);
       });
-      row.title = `${round.winner ? `${round.winner} cleared their hand.` : "The lowest hand won."} Remaining pips: ${round.unplayed.map((hand) => `${hand.name} ${hand.value}`).join(", ")}.`;
+      row.title = `${round.winner ? clearedHand(round.winner) : `Trancado: team pips ${round.teamPips.join(" to ")}.`} Remaining pips: ${round.unplayed.map((hand) => `${hand.name} ${hand.value}`).join(", ")}.`;
       return row;
     }),
   );

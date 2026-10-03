@@ -8,6 +8,9 @@ import { layoutBoard } from "./domino-layout.js";
 import { previewPlacement } from "./placement-preview.js";
 
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Your rack leans toward you so pips stay readable from the patio camera.
+const HAND_TILT = 0.95;
+const HAND_SPACING = 0.43;
 const seatLocations = [
   [0, 2.55, 4.15],
   [4.45, 2.55, 0],
@@ -16,7 +19,7 @@ const seatLocations = [
 ];
 
 export class PatioScene {
-  constructor(canvas, { onSelect, onPlace, onLand, spec }) {
+  constructor(canvas, { onSelect, onPlace, onPreview, onLand, spec }) {
     this.canvas = canvas;
     this.onSelect = onSelect;
     this.onLand = onLand;
@@ -80,15 +83,29 @@ export class PatioScene {
     this.selection = null;
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
-    this.endButtons = ["left", "right"].map((end) => {
+    this.endButtons = ["left", "right", "first"].map((end) => {
       const button = document.createElement("button");
       button.className = "end-port";
       button.dataset.end = end;
       button.hidden = true;
       button.addEventListener("click", () => onPlace(end));
+      button.addEventListener("pointerenter", () => onPreview(end));
+      button.addEventListener("focus", () => onPreview(end));
+      button.addEventListener("pointerleave", () => onPreview(null));
+      button.addEventListener("blur", () => onPreview(null));
       document.querySelector("#board-ends").append(button);
       return button;
     });
+    this.keyTags = Array.from({ length: 7 }, (_, index) => {
+      const tag = document.createElement("span");
+      tag.className = "hand-key";
+      tag.textContent = index + 1;
+      tag.hidden = true;
+      document.querySelector("#hand-keys").append(tag);
+      return tag;
+    });
+    this.hovered = null;
+    this.playable = new Set();
     this.tags = seatLocations.map((_, index) => {
       const tag = document.createElement("div");
       tag.className = "player-tag";
@@ -102,14 +119,25 @@ export class PatioScene {
     });
     canvas.addEventListener("pointerup", (event) => {
       if (!this.down || Math.hypot(event.clientX - this.down[0], event.clientY - this.down[1]) > 6) return;
-      const rect = canvas.getBoundingClientRect();
-      this.pointer.set(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        (-(event.clientY - rect.top) / rect.height) * 2 + 1,
-      );
-      this.raycaster.setFromCamera(this.pointer, this.camera);
-      const hit = this.raycaster.intersectObjects([...this.handTiles.values()], true)[0];
-      if (hit) this.onSelect(hit.object.userData.tileId);
+      const id = this.tileAt(event);
+      if (id) this.onSelect(id);
+    });
+    canvas.addEventListener("pointermove", (event) => {
+      if (event.pointerType !== "mouse" || event.buttons) return;
+      const id = this.tileAt(event);
+      const playable = id && this.playable?.has(id) ? id : null;
+      canvas.style.cursor = playable ? "pointer" : "";
+      if (playable !== this.hovered) {
+        this.hovered = playable;
+        this.paintHand();
+      }
+    });
+    canvas.addEventListener("pointerleave", () => {
+      canvas.style.cursor = "";
+      if (this.hovered) {
+        this.hovered = null;
+        this.paintHand();
+      }
     });
     this.pipeline = createSceneRenderer(this.renderer, this.scene, this.camera);
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -185,6 +213,30 @@ export class PatioScene {
       this.templates.set(`${match[1]}-${match[2]}`, template);
     });
     if (this.templates.size !== 28) throw new Error(`Expected 28 Blender dominoes, loaded ${this.templates.size}.`);
+  }
+
+  tileAt(event) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.pointer.set(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      (-(event.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    return this.raycaster.intersectObjects([...this.handTiles.values()], true)[0]?.object.userData.tileId ?? null;
+  }
+
+  paintHand() {
+    for (const [id, group] of this.handTiles) {
+      const legal = this.playable.has(id);
+      const lift = id === this.selection ? 0.17 : id === this.hovered ? 0.08 : 0;
+      group.position.y = group.userData.restY + lift;
+      group.traverse((node) => {
+        if (!node.isMesh || !node.name.startsWith("Domino_body")) return;
+        node.material.emissive.set(id === this.selection ? "#587b38" : id === this.hovered ? "#3c5528" : "#000000");
+        node.material.emissiveIntensity = 0.24;
+        node.material.color.set(legal ? "#fff5dc" : "#cfcabb");
+      });
+    }
   }
 
   resize() {
@@ -270,10 +322,12 @@ export class PatioScene {
     this.ghost.scale.setScalar(candidate.layout.scale);
   }
 
-  update(state, { selected, busy }) {
+  update(state, { selected, busy, active }) {
     if (!this.templates.size) return;
     this.clearPreview();
     this.selection = selected;
+    this.playable = new Set(active ? state.moves.map((move) => move.tile) : []);
+    if (!this.playable.has(this.hovered)) this.hovered = null;
     const boardIds = new Set(state.board.map((tile) => tile.id));
     for (const [id, group] of this.boardTiles) {
       if (!boardIds.has(id)) {
@@ -303,7 +357,7 @@ export class PatioScene {
           group.userData.flight = {
             from,
             angle: handTile?.rotation.y ?? (event.player === 2 ? Math.PI / 2 : 0),
-            flip: event.player ? Math.PI : 0,
+            flip: handTile?.rotation.x ?? (event.player ? Math.PI : 0),
             start: performance.now(),
           };
           if (reducedMotion) {
@@ -329,18 +383,14 @@ export class PatioScene {
         group = this.tile(tile, { selectable: true });
         this.handTiles.set(tile.id, group);
       }
-      group.position.set((index - (hand.length - 1) / 2) * 0.43, 1.83, 2.55);
-      group.rotation.set(0, -Math.PI / 2, 0);
-      const legal = state.moves.some((move) => move.tile === tile.id);
-      group.position.y += selected === tile.id ? 0.17 : 0;
-      group.traverse((node) => {
-        if (node.isMesh && node.name.startsWith("Domino_body")) {
-          node.material.emissive.set(selected === tile.id ? "#587b38" : "#000000");
-          node.material.emissiveIntensity = 0.24;
-          node.material.color.set(legal ? "#fff5dc" : "#e3dfd0");
-        }
-      });
+      // Revealed hands lie flat after the round so every seat reads the same way.
+      const tilt = state.phase === "playing" ? HAND_TILT : 0;
+      group.userData.restY = 1.83 + (this.spec.length / 2) * Math.sin(tilt) + 0.01;
+      group.position.set((index - (hand.length - 1) / 2) * HAND_SPACING, group.userData.restY, 2.55);
+      group.rotation.set(tilt, -Math.PI / 2, 0);
     });
+    this.handOrder = hand.map((tile) => tile.id);
+    this.paintHand();
     for (const group of this.hiddenTiles) this.remove(group);
     this.hiddenTiles = [];
     for (let player = 1; player < 4; player++) {
@@ -368,11 +418,23 @@ export class PatioScene {
     });
     this.endButtons.forEach((button) => {
       const end = button.dataset.end;
-      button.hidden = !this.layout.ends || state.phase !== "playing";
-      button.disabled =
-        busy || state.turn !== 0 || !state.moves.some((move) => move.tile === selected && move.position === end);
-      button.textContent = `${end === "left" ? "Left" : "Right"} \u00b7 ${state.ends[end] ?? "-"}`;
+      const fits = active && state.moves.some((move) => move.tile === selected && move.position === end);
+      if (end === "first") {
+        button.hidden = !fits;
+        button.disabled = busy;
+        button.textContent = `Lead ${selected ?? ""}`;
+        button.setAttribute("aria-label", `Lead the round with ${selected}`);
+        return;
+      }
+      button.hidden = !this.layout.ends || !active;
+      button.disabled = busy || !fits;
+      button.textContent = `${end === "left" ? "L" : "R"} \u00b7 ${state.ends[end] ?? "-"}`;
       button.setAttribute("aria-label", `Play ${selected ?? "a tile"} on the ${end} end, matching ${state.ends[end]}`);
+    });
+    this.keyTags.forEach((tag, index) => {
+      tag.hidden = state.phase !== "playing" || state.autoplay || index >= hand.length;
+      tag.classList.toggle("playable", this.playable.has(hand[index]?.id));
+      tag.classList.toggle("selected", hand[index]?.id === selected);
     });
     this.state = state;
   }
@@ -425,7 +487,14 @@ export class PatioScene {
     this.camera.updateMatrixWorld();
     const rect = this.canvas.getBoundingClientRect();
     this.endButtons.forEach((button) => {
-      if (!this.layout?.ends || button.hidden) return;
+      if (button.hidden) return;
+      if (button.dataset.end === "first") {
+        const center = new THREE.Vector3(0, 1.95, 0).project(this.camera);
+        button.style.left = `${((center.x + 1) / 2) * rect.width}px`;
+        button.style.top = `${((1 - center.y) / 2) * rect.height}px`;
+        return;
+      }
+      if (!this.layout?.ends) return;
       const { point, direction } = this.layout.ends[button.dataset.end];
       const projected = new THREE.Vector3(point[0], 1.95, point[1]).project(this.camera);
       const extended = new THREE.Vector3(point[0] + direction[0], 1.95, point[1] + direction[1]).project(this.camera);
@@ -442,6 +511,14 @@ export class PatioScene {
       button.style.top = `${y}px`;
       button.style.visibility =
         projected.z > 1 || Math.abs(projected.x) > 0.96 || Math.abs(projected.y) > 0.92 ? "hidden" : "visible";
+    });
+    this.keyTags.forEach((tag, index) => {
+      const group = this.handTiles.get(this.handOrder?.[index]);
+      if (tag.hidden || !group) return;
+      const projected = new THREE.Vector3(group.position.x, 1.84, 2.55 + this.spec.length * 0.62).project(this.camera);
+      tag.style.left = `${((projected.x + 1) / 2) * rect.width}px`;
+      tag.style.top = `${((1 - projected.y) / 2) * rect.height}px`;
+      tag.style.visibility = projected.z > 1 || Math.abs(projected.y) > 0.98 ? "hidden" : "visible";
     });
     seatLocations.forEach((location, index) => {
       const projected = new THREE.Vector3(...location).project(this.camera);
