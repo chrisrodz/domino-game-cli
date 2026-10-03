@@ -135,6 +135,21 @@ every turn, pass, round result, next leader, and running score. The command
 reports tranque and win rates, and exits non-zero on any violation. CI runs
 500 matches on every push.
 
+### Run the engine in a browser
+
+[El Patio](https://chrisrodz.io/elpatio) runs this Python engine in the browser
+with [Pyodide](https://pyodide.org). The site pins this repository by commit
+(`package.json` here exists only for that) and loads `domino_game/models`,
+`domino_game/game`, and `domino_game/patio/session.py` into Pyodide.
+
+Pyodide ships neither rich nor typer, so the engine and the patio session must
+import without them: keep terminal imports in `domino_game/ui`, `cli.py`, and
+`game/engine.py`, or inside the functions that render. A test enforces this:
+
+```bash
+uv run pytest tests/test_game/test_headless_import.py
+```
+
 ### Start a Game
 
 ```bash

@@ -1,8 +1,10 @@
 """Board model for managing the domino line."""
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from rich.text import Text
+if TYPE_CHECKING:
+    # rich is only for terminal output; keep the engine importable without it (e.g. in Pyodide).
+    from rich.text import Text
 
 from domino_game.models.domino import Domino
 
@@ -68,8 +70,10 @@ class Board:
             return "Empty board"
         return " ".join(str(d) for d in self.dominoes)
 
-    def to_rich(self) -> Text:
+    def to_rich(self) -> "Text":
         """Return a rich-formatted representation of the board."""
+        from rich.text import Text
+
         if self.is_empty():
             return Text("Empty board", style="dim")
 

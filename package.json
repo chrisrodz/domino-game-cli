@@ -1,0 +1,15 @@
+{
+  "name": "domino-game-cli",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Python sources of the Caribbean dominoes engine, installable by commit so browser games can run them in Pyodide.",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrisrodz/domino-game-cli.git"
+  },
+  "files": [
+    "domino_game/**/*.py",
+    "LICENSE"
+  ]
+}
