@@ -84,7 +84,7 @@ def courtyard(builders):
 
 def table_details(builders, palette):
     box, rod, curved_rod = builders
-    wood, brass, felt, ink = palette
+    wood, brass, _felt, ink = palette
     for y in [-2.72, 2.72]:
         box("Mortise apron", ((0, y, 1.43), (5.98, 0.14, 0.30), 0.035), wood)
     for x in [-2.92, 2.92]:

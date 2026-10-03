@@ -40,12 +40,11 @@ def simulate(*, matches: int, target: int = 200, mode: Mode = "target_score", se
     base = random.randrange(2**32) if seed is None else seed
     for index in range(matches):
         match = play_out(Match(target=target, mode=mode, rng=random.Random(base + index)))
+        outcomes = [log.result() for log in match.rounds]
         report.matches += 1
-        report.rounds += len(match.rounds)
-        report.blocked += sum(log.outcome.blocked for log in match.rounds)
-        report.tied_blocks += sum(
-            log.outcome.blocked and log.outcome.team_pips[0] == log.outcome.team_pips[1] for log in match.rounds
-        )
-        report.team_wins[match.winner] += 1
+        report.rounds += len(outcomes)
+        report.blocked += sum(outcome.blocked for outcome in outcomes)
+        report.tied_blocks += sum(outcome.blocked and outcome.team_pips[0] == outcome.team_pips[1] for outcome in outcomes)
+        report.team_wins[outcomes[-1].team] += 1
         report.violations += [f"match seed {base + index}: {problem}" for problem in audit(match)]
     return report

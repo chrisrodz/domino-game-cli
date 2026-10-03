@@ -1,6 +1,6 @@
 """CLI interface for Caribbean Domino Game."""
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import typer
 from rich import box
@@ -9,6 +9,9 @@ from rich.panel import Panel
 
 from domino_game.game.engine import Game
 from domino_game.ui.setup_menu import SetupMenu
+
+if TYPE_CHECKING:
+    from domino_game.game.match import Mode
 
 console = Console()
 app = typer.Typer(help="Caribbean Domino Game - 2v2 Domino Game CLI")
@@ -21,7 +24,7 @@ def patio(
     single_round: bool = typer.Option(False, "--single-round", help="Play one round"),
     autoplay: bool = typer.Option(False, "--autoplay", help="Watch CPUs play every seat, including yours"),
     browser: bool = typer.Option(True, "--browser/--no-browser", help="Open the browser automatically"),
-):
+) -> None:
     """Play the existing 2v2 game at a Blender-built 3D patio table."""
     from domino_game.patio.server import serve
     from domino_game.patio.session import MoveError
@@ -45,7 +48,7 @@ def simulate(
     target: int = typer.Option(200, min=1, max=1000, help="Target score"),
     single_round: bool = typer.Option(False, "--single-round", help="Each match is one round"),
     seed: Optional[int] = typer.Option(None, help="Base seed; match N uses seed + N"),
-):
+) -> None:
     """Play all-CPU matches headlessly and audit every turn against the rules."""
     from domino_game.game.simulate import simulate as run
 
@@ -71,7 +74,7 @@ def play(
     quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins"),
     single_round: bool = typer.Option(False, "--single-round", "-s", help="Play a single round only"),
     skip_setup: bool = typer.Option(False, "--skip-setup", help="Skip setup menu (use with other flags)"),
-):
+) -> None:
     """
     🎲 Start a new game of Caribbean Dominoes!
 
@@ -82,6 +85,7 @@ def play(
 
     if skip_setup or has_cli_config:
         # Use CLI flags directly
+        game_mode: Mode
         if single_round:
             game_mode = "single_round"
             final_target = 0  # Not used in single round
@@ -104,7 +108,7 @@ def play(
 
 
 @app.command()
-def rules():
+def rules() -> None:
     """
     📖 Display the game rules and instructions
     """
@@ -137,7 +141,7 @@ def rules():
 
 
 @app.command()
-def about():
+def about() -> None:
     """
     ℹ️  About Caribbean Dominoes CLI
     """
@@ -162,6 +166,6 @@ def about():
     console.print(about_panel)
 
 
-def main():
+def main() -> None:
     """Main entry point for the CLI."""
     app()

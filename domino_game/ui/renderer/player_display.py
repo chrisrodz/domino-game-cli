@@ -1,25 +1,29 @@
 """Player display rendering."""
 
+from collections.abc import Sequence
+
 from rich.align import Align
 from rich.box import HEAVY, ROUNDED
-from rich.console import Group
+from rich.console import Group, RenderableType
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+
+from domino_game.game.rules import End, Move
+from domino_game.models import Domino, Player
 
 
 class PlayerDisplay:
     """Renders player information around the table."""
 
     @staticmethod
-    def render_cpu_player(player, is_current: bool = False, position: str = "top") -> Panel:
+    def render_cpu_player(player: Player, *, is_current: bool = False) -> Panel:
         """
         Render a CPU player with tile count indicator.
 
         Args:
             player: The player object
             is_current: Whether this player is currently playing
-            position: Position around table (top, left, right)
 
         Returns:
             Rich Panel with player info
@@ -64,7 +68,7 @@ class PlayerDisplay:
         return Panel(Align.center(content), title=title, border_style=border_style, box=box, padding=(0, 1))
 
     @staticmethod
-    def render_human_player(player, valid_moves: list[tuple], is_current: bool = False) -> Panel:
+    def render_human_player(player: Player, valid_moves: Sequence[Move], *, is_current: bool = False) -> Panel:
         """
         Render the human player with their actual hand visible.
 
@@ -83,7 +87,7 @@ class PlayerDisplay:
         hand_table.add_column("Moves", justify="center", style="green")
 
         # Build domino-to-moves mapping
-        domino_moves = {}  # {domino: [(option_num, position), ...]}
+        domino_moves: dict[Domino, list[tuple[int, End]]] = {}
         for idx, (domino, position) in enumerate(valid_moves, 1):
             if domino not in domino_moves:
                 domino_moves[domino] = []
@@ -102,14 +106,14 @@ class PlayerDisplay:
                         move_parts.append(f"{option_num}(R)")
                     else:  # first move
                         move_parts.append(f"{option_num}")
-                moves_text = ", ".join(move_parts)
+                moves_cell = ", ".join(move_parts)
             else:
-                moves_text = "-"
+                moves_cell = "-"
 
-            hand_table.add_row(domino.to_rich(), str(domino.value()), moves_text)
+            hand_table.add_row(domino.to_rich(), str(domino.value()), moves_cell)
 
         # Create content
-        content_parts = [hand_table]
+        content_parts: list[RenderableType] = [hand_table]
 
         # Add valid moves if it's their turn
         if is_current and valid_moves:

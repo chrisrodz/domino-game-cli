@@ -8,7 +8,7 @@ from functools import partial
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from domino_game.game.rules import RuleError
 from domino_game.patio.session import MoveError, PatioSession
@@ -16,10 +16,16 @@ from domino_game.patio.session import MoveError, PatioSession
 WEB_ROOT = Path(__file__).with_name("web")
 
 
+class SessionConfig(TypedDict):
+    target_score: int
+    game_mode: str
+    autoplay: bool
+
+
 class PatioServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port: int, config: dict[str, Any]):
+    def __init__(self, port: int, config: SessionConfig):
         super().__init__(("127.0.0.1", port), partial(PatioHandler, directory=str(WEB_ROOT)))
         self.config = config
         self.sessions: dict[str, PatioSession] = {}
@@ -28,7 +34,12 @@ class PatioServer(ThreadingHTTPServer):
 
 class PatioHandler(SimpleHTTPRequestHandler):
     server: PatioServer
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".js": "text/javascript", ".glb": "model/gltf-binary"}
+    # The base class types this as an instance attribute, so a ClassVar would conflict.
+    extensions_map: dict[str, str] = {  # noqa: RUF012
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".js": "text/javascript",
+        ".glb": "model/gltf-binary",
+    }
 
     def _local_request(self) -> bool:
         port = self.server.server_port
@@ -131,7 +142,7 @@ class PatioHandler(SimpleHTTPRequestHandler):
             except RuleError as error:
                 self._json({"error": str(error)}, 400)
 
-    def log_message(self, format: str, *args) -> None:
+    def log_message(self, format: str, *args: Any) -> None:
         if args and str(args[1]) != "200":
             super().log_message(format, *args)
 
@@ -144,7 +155,7 @@ def serve(
     autoplay: bool = False,
     open_browser: bool = True,
 ) -> None:
-    config = {"target_score": target_score, "game_mode": game_mode, "autoplay": autoplay}
+    config = SessionConfig(target_score=target_score, game_mode=game_mode, autoplay=autoplay)
     PatioSession(**config)
     try:
         server = PatioServer(port, config)

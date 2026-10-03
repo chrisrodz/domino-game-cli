@@ -3,7 +3,7 @@
 import random
 from typing import Any, Optional
 
-from domino_game.game.match import Match
+from domino_game.game.match import Match, RoundLog, parse_mode
 from domino_game.game.rules import RuleError
 from domino_game.models import Domino
 
@@ -33,7 +33,7 @@ class PatioSession:
         if type(autoplay) is not bool:
             raise MoveError(f"Autoplay must be true or false, got {autoplay!r}.")
         try:
-            self.match = Match(target=target_score, mode=game_mode, rng=rng)
+            self.match = Match(target=target_score, mode=parse_mode(game_mode), rng=rng)
         except RuleError as error:
             raise MoveError(str(error)) from error
         self.autoplay = autoplay
@@ -89,8 +89,10 @@ class PatioSession:
         self.autoplay = enabled
         self.revision += 1
 
-    def _round_entry(self, log) -> dict[str, Any]:
-        outcome = log.outcome
+    def _round_entry(self, log: RoundLog) -> dict[str, Any]:
+        outcome = log.result()
+        if log.scores is None:
+            raise MoveError(f"Round {log.number} was scored without running totals.")
         return {
             "round": log.number,
             "team": outcome.team,

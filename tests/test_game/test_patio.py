@@ -3,9 +3,11 @@
 import json
 import random
 import threading
+from collections.abc import Sequence
 from http.cookiejar import CookieJar
+from typing import Any
 from urllib.error import HTTPError
-from urllib.request import HTTPCookieProcessor, Request, build_opener
+from urllib.request import HTTPCookieProcessor, OpenerDirector, Request, build_opener
 
 import pytest
 
@@ -21,12 +23,12 @@ def session():
     return PatioSession(rng=random.Random(66))
 
 
-def reach_human(session):
+def reach_human(session: PatioSession) -> None:
     while session.phase == "playing" and session.match.turn != 0:
         session.step_cpu()
 
 
-def set_table(session, board, hands, turn=0):
+def set_table(session: PatioSession, board: Sequence[Domino], hands: Sequence[Sequence[Domino]], turn: int = 0) -> None:
     match = session.match
     match.board = Board()
     for tile in board:
@@ -77,7 +79,7 @@ def test_opening_anchor_survives_left_placements_and_history_truncation(session)
     assert snapshot["board"][0]["id"] == "1-6"
 
 
-@pytest.mark.parametrize("ends,tile", [(D(6, 6), D(1, 6)), (D(2, 6), D(2, 6)), (D(3, 3), D(3, 3))])
+@pytest.mark.parametrize(("ends", "tile"), [(D(6, 6), D(1, 6)), (D(2, 6), D(2, 6)), (D(3, 3), D(3, 3))])
 @pytest.mark.parametrize("position", ["left", "right"])
 def test_tile_matching_both_ends_can_be_played_on_either_side(session, ends, tile, position):
     set_table(session, [ends], [[tile, D(0, 0)], [D(0, 1)], [D(0, 2)], [D(0, 3)]])
@@ -106,7 +108,8 @@ def test_tranque_scores_once_reveals_hands_and_winner_leads_next_round(session):
     assert snapshot["scores"] == [0, 11]
     book = snapshot["rounds"]
     assert len(book) == 1
-    assert book[0]["winner"] is None and book[0]["nextLeader"] == "Opponent 1"
+    assert book[0]["winner"] is None
+    assert book[0]["nextLeader"] == "Opponent 1"
     assert book[0]["teamPips"] == [8, 3]
     assert sum(hand["value"] for hand in book[0]["unplayed"]) == book[0]["points"]
     assert all(player["hand"] is not None for player in snapshot["players"])
@@ -116,7 +119,8 @@ def test_tranque_scores_once_reveals_hands_and_winner_leads_next_round(session):
     after = session.snapshot()
     assert (after["round"], after["leader"], after["turn"]) == (2, 1, 1)
     assert after["scores"] == [0, 11]
-    assert after["board"] == [] and after["opening"] is None
+    assert after["board"] == []
+    assert after["opening"] is None
     assert all(player["count"] == 7 for player in after["players"])
     assert after["rounds"] == book
 
@@ -146,7 +150,8 @@ def test_going_out_finishes_single_round():
 def test_autoplay_lets_the_cpu_take_the_human_seat(session):
     session.set_autoplay(True)
     snapshot = session.snapshot()
-    assert snapshot["autoplay"] is True and snapshot["moves"] == []
+    assert snapshot["autoplay"] is True
+    assert snapshot["moves"] == []
     with pytest.raises(MoveError, match="Autoplay"):
         session.play(snapshot["players"][0]["hand"][0]["id"], "first")
     for _ in range(2000):
@@ -217,7 +222,7 @@ def http_game():
     worker.join()
 
 
-def post(client, url, path, payload, **headers):
+def post(client: OpenerDirector, url: str, path: str, payload: Any, **headers: str) -> Any:
     request = Request(url + path, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", **headers})
     return client.open(request)
 

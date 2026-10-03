@@ -8,14 +8,14 @@ from domino_game.game.rules import RuleError, legal_moves, score_round
 from domino_game.game.scoring import determine_winner
 
 __all__ = [
-    "create_deck",
-    "shuffle_deck",
     "CPUStrategy",
-    "SimpleStrategy",
-    "determine_winner",
     "Game",
-    "legal_moves",
     "Match",
     "RuleError",
+    "SimpleStrategy",
+    "create_deck",
+    "determine_winner",
+    "legal_moves",
     "score_round",
+    "shuffle_deck",
 ]

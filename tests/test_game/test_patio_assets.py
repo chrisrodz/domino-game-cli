@@ -2,8 +2,10 @@
 
 import json
 import struct
+from collections.abc import Sequence
 from itertools import product
 from pathlib import Path
+from typing import Any, Optional
 
 import pytest
 
@@ -11,7 +13,7 @@ ASSETS = Path(__file__).resolve().parents[2] / "domino_game/patio/web/assets"
 SPEC = json.loads((ASSETS / "domino-spec.json").read_text())
 
 
-def glb(name):
+def glb(name: str) -> Any:
     payload = (ASSETS / name).read_bytes()
     magic, version, length = struct.unpack_from("<4sII", payload)
     assert (magic, version, length) == (b"glTF", 2, len(payload))
@@ -20,7 +22,7 @@ def glb(name):
     return json.loads(payload[20 : 20 + json_length])
 
 
-def height_bounds(asset, node):
+def height_bounds(asset: Any, node: Any) -> list[float]:
     positions = asset["meshes"][node["mesh"]]["primitives"][0]["attributes"]["POSITION"]
     bounds = asset["accessors"][positions]
     translation = node.get("translation", [0, 0, 0])[1]
@@ -70,7 +72,7 @@ def test_felt_sheen_does_not_wash_out_playing_surface():
     assert max(sheen) < 0.1
 
 
-def transform_point(point, node):
+def transform_point(point: Sequence[float], node: Any) -> list[float]:
     if "matrix" in node:
         matrix = node["matrix"]
         return [sum(matrix[column * 4 + row] * point[column] for column in range(3)) + matrix[12 + row] for row in range(3)]
@@ -87,16 +89,17 @@ def test_foliage_clears_all_four_chairs():
     nodes = asset["nodes"]
     parents = {child: index for index, node in enumerate(nodes) for child in node.get("children", [])}
 
-    def world_bounds(index):
-        points = []
+    def world_bounds(index: int) -> list[tuple[float, float]]:
+        points: list[Sequence[float]] = []
         for primitive in asset["meshes"][nodes[index]["mesh"]]["primitives"]:
             bounds = asset["accessors"][primitive["attributes"]["POSITION"]]
             for corner in product(*zip(bounds["min"], bounds["max"])):
-                ancestor = index
+                point: Sequence[float] = corner
+                ancestor: Optional[int] = index
                 while ancestor is not None:
-                    corner = transform_point(corner, nodes[ancestor])
+                    point = transform_point(point, nodes[ancestor])
                     ancestor = parents.get(ancestor)
-                points.append(corner)
+                points.append(point)
         return [(min(p[axis] for p in points), max(p[axis] for p in points)) for axis in range(3)]
 
     plants = [

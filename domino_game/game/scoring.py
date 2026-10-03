@@ -14,6 +14,6 @@ def determine_winner(team_scores: list[int], target_score: int) -> int:
     """
     if team_scores[0] >= target_score:
         return 0
-    elif team_scores[1] >= target_score:
+    if team_scores[1] >= target_score:
         return 1
     return -1  # No winner yet

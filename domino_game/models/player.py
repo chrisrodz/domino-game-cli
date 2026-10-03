@@ -20,11 +20,11 @@ class Player:
         self.hand: list[Domino] = []
         self.passed_last_turn = False
 
-    def add_domino(self, domino: Domino):
+    def add_domino(self, domino: Domino) -> None:
         """Add a domino to the player's hand."""
         self.hand.append(domino)
 
-    def remove_domino(self, domino: Domino):
+    def remove_domino(self, domino: Domino) -> None:
         """Remove a domino from the player's hand."""
         self.hand.remove(domino)
 

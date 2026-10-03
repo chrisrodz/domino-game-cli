@@ -47,11 +47,12 @@ def pips(hand: list[Domino]) -> int:
 
 def legal_moves(hand: list[Domino], board: Board, *, must_open_with: Optional[Domino] = None) -> list[Move]:
     """Every (tile, end) the hand may play; a tile matching both ends is listed for each end."""
-    if board.is_empty():
+    ends = board.ends()
+    if ends is None:
         if must_open_with is not None:
             return [(must_open_with, "first")] if must_open_with in hand else []
         return [(tile, "first") for tile in hand]
-    left, right = board.left_value(), board.right_value()
+    left, right = ends
     moves: list[Move] = []
     for tile in hand:
         if tile.has_value(left):
@@ -87,13 +88,19 @@ def score_round(hands: list[list[Domino]], *, closer: int) -> RoundOutcome:
     team_pips = (hand_pips[0] + hand_pips[2], hand_pips[1] + hand_pips[3])
     points = sum(hand_pips)
     if not hands[closer]:
-        return RoundOutcome(team_of(closer), points, False, closer, closer, hand_pips, team_pips)
+        return RoundOutcome(
+            team_of(closer), points, blocked=False, next_leader=closer, closer=closer, hand_pips=hand_pips, team_pips=team_pips
+        )
     if any(not hand for hand in hands):
         raise RuleError(f"Seat {closer} closed the round, but a different seat has an empty hand.")
     if team_pips[0] == team_pips[1]:
-        return RoundOutcome(team_of(closer), points, True, closer, closer, hand_pips, team_pips)
+        return RoundOutcome(
+            team_of(closer), points, blocked=True, next_leader=closer, closer=closer, hand_pips=hand_pips, team_pips=team_pips
+        )
     team = 0 if team_pips[0] < team_pips[1] else 1
     order = [(closer + step) % SEATS for step in range(SEATS)]
     members = [seat for seat in order if team_of(seat) == team]
     leader = min(members, key=lambda seat: hand_pips[seat])
-    return RoundOutcome(team, points, True, leader, closer, hand_pips, team_pips)
+    return RoundOutcome(
+        team, points, blocked=True, next_leader=leader, closer=closer, hand_pips=hand_pips, team_pips=team_pips
+    )
