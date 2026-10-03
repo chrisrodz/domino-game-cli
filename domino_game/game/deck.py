@@ -7,11 +7,7 @@ from domino_game.models.domino import Domino
 
 def create_deck() -> list[Domino]:
     """Create a full double-six domino set (28 tiles)."""
-    deck = []
-    for i in range(7):
-        for j in range(i, 7):
-            deck.append(Domino(i, j))
-    return deck
+    return [Domino(i, j) for i in range(7) for j in range(i, 7)]
 
 
 def shuffle_deck(deck: list[Domino]) -> None:

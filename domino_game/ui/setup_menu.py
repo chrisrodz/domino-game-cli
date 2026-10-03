@@ -1,7 +1,7 @@
 """Setup menu for game configuration."""
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Optional
 
 from rich.align import Align
 from rich.box import ROUNDED
@@ -9,24 +9,26 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from domino_game.game.match import Mode
+
 
 @dataclass
 class SetupConfig:
     """Configuration from setup menu."""
 
-    game_mode: Literal["target_score", "single_round"]
+    game_mode: Mode
     target_score: int
 
 
 class SetupMenu:
     """Interactive setup menu for game configuration."""
 
-    PRESET_SCORES = [100, 200, 300, 500]
+    PRESET_SCORES = (100, 200, 300, 500)
 
     def __init__(self, console: Optional[Console] = None):
         """Initialize the setup menu."""
         self.console = console or Console()
-        self.game_mode = "target_score"
+        self.game_mode: Mode = "target_score"
         self.target_score = 200
 
     def run(self) -> SetupConfig:
@@ -49,11 +51,10 @@ class SetupMenu:
             if choice == "1":
                 self.game_mode = "target_score"
                 break
-            elif choice == "2":
+            if choice == "2":
                 self.game_mode = "single_round"
                 break
-            else:
-                self.console.print("[red]Invalid choice. Please enter 1 or 2.[/red]")
+            self.console.print("[red]Invalid choice. Please enter 1 or 2.[/red]")
 
         self.console.print()
 
@@ -74,7 +75,7 @@ class SetupMenu:
                     if 1 <= choice_num <= len(self.PRESET_SCORES):
                         self.target_score = self.PRESET_SCORES[choice_num - 1]
                         break
-                    elif choice_num == len(self.PRESET_SCORES) + 1:
+                    if choice_num == len(self.PRESET_SCORES) + 1:
                         # Custom input
                         while True:
                             custom = self.console.input("[yellow]Enter custom target score (50-1000):[/yellow] ").strip()
@@ -83,13 +84,11 @@ class SetupMenu:
                                 if 50 <= custom_score <= 1000:
                                     self.target_score = custom_score
                                     break
-                                else:
-                                    self.console.print("[red]Please enter a value between 50 and 1000.[/red]")
+                                self.console.print("[red]Please enter a value between 50 and 1000.[/red]")
                             except ValueError:
                                 self.console.print("[red]Please enter a valid number.[/red]")
                         break
-                    else:
-                        self.console.print(f"[red]Invalid choice. Please enter 1-{len(self.PRESET_SCORES) + 1}.[/red]")
+                    self.console.print(f"[red]Invalid choice. Please enter 1-{len(self.PRESET_SCORES) + 1}.[/red]")
                 except ValueError:
                     self.console.print(f"[red]Invalid choice. Please enter 1-{len(self.PRESET_SCORES) + 1}.[/red]")
         else:

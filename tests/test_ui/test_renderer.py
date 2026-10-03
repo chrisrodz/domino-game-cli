@@ -38,7 +38,7 @@ def test_renderer():
         # Test different game states
         for i in range(4):
             game.current_player_idx = i
-            valid_moves = game.players[0].get_valid_moves(game.board) if i == 0 else None
+            valid_moves = game.valid_moves(game.players[0]) if i == 0 else None
 
             status = f"Testing player {i} - {game.players[i].name}"
             renderer.update_display(game, valid_moves, status)

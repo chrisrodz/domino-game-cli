@@ -42,17 +42,29 @@
     </header>
     <main>
       <section id="yard" aria-label="3D domino table">
-        <canvas id="scene" aria-label="3D patio. Select your tiles using the hand buttons below."></canvas>
+        <canvas
+          id="scene"
+          aria-label="3D patio. Your tiles are listed in the Your hand group. Press ? for keyboard shortcuts."
+        ></canvas>
+        <div id="hand-access" class="visually-hidden" role="group" aria-label="Your hand"></div>
         <div class="scene-heading">
           <span class="eyebrow">PUERTO RICO / A SEAT AT THE TABLE</span>
           <p>Un ratito m&aacute;s.</p>
         </div>
         <div class="round-status">
-          <span class="live-dot" aria-hidden="true"></span><span id="round-label">ROUND 01</span
-          ><span class="status-separator">/</span><span id="turn-label">Dealing the tiles</span>
+          <span class="live-dot" aria-hidden="true"></span
+          ><span class="zen-score" aria-hidden="true"
+            ><span id="zen-us">0</span><span class="status-separator">-</span><span id="zen-them">0</span></span
+          ><span id="round-label">ROUND 01</span><span class="status-separator">/</span
+          ><span id="turn-label" aria-live="polite">Dealing the tiles</span>
         </div>
         <div id="players" role="group" aria-label="Players at the table"></div>
+        <div id="hand-keys" aria-hidden="true"></div>
         <div id="board-ends" role="group" aria-label="Choose an open end"></div>
+        <div id="turn-bar" class="turn-bar">
+          <p id="turn-hint" aria-live="polite"></p>
+          <button id="pass-button" class="primary-button" hidden>Pass <kbd>P</kbd></button>
+        </div>
         <div id="loading" class="loading">
           <span class="loading-mark" aria-hidden="true"></span>
           <p>Setting the table<span class="loading-dots">...</span></p>
@@ -62,6 +74,26 @@
           <p id="last-move" aria-live="polite">Seven tiles. Four seats. One good afternoon.</p>
           <div class="view-controls">
             <span>Drag to look around &middot; Scroll to zoom</span
+            ><button
+              id="autoplay-button"
+              class="scene-button"
+              aria-pressed="false"
+              aria-label="Autoplay: CPUs play every seat"
+              title="Autoplay (A)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l11-7Z" /></svg
+              ><span class="control-label">Autoplay</span></button
+            ><button
+              id="zen-button"
+              class="scene-button"
+              aria-pressed="false"
+              aria-label="Zen mode"
+              title="Zen mode (Z)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 4a4 4 0 0 1 0 8 4 4 0 0 0 0 8" /></svg
+              ><span class="control-label">Zen</span></button
             ><button
               id="view-button"
               class="scene-button"
@@ -98,6 +130,16 @@
                 <path d="m11 4-6 5H2v6h3l6 5ZM16 8a6 6 0 0 1 0 8" />
                 <path class="sound-slash" d="m3 3 18 18" /></svg
               ><span class="control-label">Sound off</span></button
+            ><button
+              id="keys-button"
+              class="scene-button"
+              aria-label="Keyboard shortcuts"
+              title="Keyboard shortcuts (?)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2" y="6" width="20" height="12" rx="2" />
+                <path d="M6 10h1M10 10h1M14 10h1M18 10h0M7 14h10" /></svg
+              ><span class="control-label">Keys</span></button
             ><button id="show-result" class="scene-button" aria-label="Show round score" title="Round score" hidden>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 20V10M12 20V4M19 20V7" /></svg
@@ -116,26 +158,6 @@
           </div>
         </section>
       </section>
-      <section class="hand-area" aria-label="Your domino hand">
-        <div class="hand-caption">
-          <span class="eyebrow">YOUR HAND</span>
-          <h2 id="hand-title">Make yourself at home.</h2>
-          <p id="hand-value">7 tiles &middot; 0 pips</p>
-        </div>
-        <div class="hand-workspace">
-          <div id="hand" class="hand" role="group" aria-label="Select a domino"></div>
-          <p id="hand-hint">Select a highlighted tile, then choose an end.</p>
-        </div>
-        <div class="move-actions">
-          <span id="ends-label" class="eyebrow">OPEN ENDS</span>
-          <div id="end-values">- <span>&amp;</span> -</div>
-          <div id="placement">
-            <button id="play-left" class="primary-button" disabled>Play left</button
-            ><button id="play-right" class="outline-button" disabled>Play right</button>
-          </div>
-          <button id="pass-button" class="primary-button" hidden>Pass turn</button>
-        </div>
-      </section>
     </main>
     <div id="error" role="alert" hidden>
       <span id="error-text"></span><button id="retry-button">Refresh game</button
@@ -147,22 +169,23 @@
       <h2 id="rules-title">A little domino etiquette.</h2>
       <ol>
         <li>You and Ally play as a team, seated across from each other.</li>
-        <li>Everyone gets seven tiles. The double-six opens the first round. Turns move counter-clockwise.</li>
         <li>
-          Select a highlighted tile, then choose an end on the table or below your hand. When both ends match, either is
-          available. No legal move? Pass your turn.
+          Everyone gets seven tiles. In the first round, whoever holds the double-six opens with it. After that, the
+          winner of the previous round opens with any tile. Turns move counter-clockwise.
         </li>
-        <li>Empty your hand to win the round. Your team scores the pips in everyone else's hand.</li>
+        <li>Match a tile to either open end. When both ends match, either is yours. No legal tile? Pass.</li>
+        <li>Empty your hand to win the round: your team scores every pip still held at the table.</li>
         <li>
-          Four consecutive passes block the round. The lowest hand wins; ties favor the team that last played. All
-          remaining pips count.
+          When no one can play, the round is <em>trancado</em>. The team holding fewer pips wins all the pips on the
+          table, and its player with fewer pips opens next. If the teams tie, the team that closed the game wins.
         </li>
-        <li>The first team to the target score wins. You can also play a single round.</li>
+        <li>The first team to the target score wins. Doscientos is 200. You can also play a single round.</li>
       </ol>
       <p class="dialog-note">
-        Controls: click a tile in your hand or on the 3D table. Keys 1-7 select a tile; Enter plays when only one end is
-        available. With a mouse, drag a hand tile to a highlighted end and release to play. Hover or focus an end to
-        preview the placement. Drag the patio to orbit, scroll or pinch to zoom. Use Table view for an overhead view.
+        Controls: click a highlighted tile at your edge of the table, then click a glowing end. Clicking the selected
+        tile again plays it when only one end fits. Keys: 1-7 select, arrows step through playable tiles, L or R plays
+        an end, Enter plays when only one end fits, P passes. Press ? for every shortcut. Drag the patio to orbit,
+        scroll or pinch to zoom.
       </p>
       <button class="primary-button" data-close>Take my seat</button>
     </dialog>
@@ -183,6 +206,9 @@
           ><button type="button" data-target="200">200 &middot; Doscientos</button
           ><button type="button" data-target="500">500 &middot; Long game</button>
         </div>
+        <label class="check"
+          ><input id="setup-autoplay" name="autoplay" type="checkbox" /> Autoplay: watch the CPUs play every seat</label
+        >
         <p class="dialog-note">
           Starting a new game replaces the current match. Scores use the existing game's rules, without bonus points.
         </p>
@@ -215,6 +241,13 @@
         </thead>
         <tbody id="scorebook-rows"></tbody>
       </table>
+      <button class="primary-button" data-close>Back to the table</button>
+    </dialog>
+    <dialog id="keys-dialog" aria-labelledby="keys-title">
+      <button class="dialog-close" data-close aria-label="Close keyboard shortcuts">Close</button
+      ><span class="eyebrow">NO MOUSE NEEDED</span>
+      <h2 id="keys-title">Keyboard shortcuts.</h2>
+      <dl id="keys-list" class="keys-list"></dl>
       <button class="primary-button" data-close>Back to the table</button>
     </dialog>
   </body>

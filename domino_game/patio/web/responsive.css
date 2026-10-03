@@ -1,15 +1,3 @@
-@media (min-width: 1700px) {
-  #yard {
-    height: calc(100svh - 322px);
-  }
-  .hand-area {
-    min-height: 226px;
-  }
-  .domino {
-    width: 55px;
-    height: 110px;
-  }
-}
 @media (max-width: 1050px) {
   .topbar {
     padding: 0 24px;
@@ -24,21 +12,6 @@
   nav {
     gap: 14px;
   }
-  .hand-area {
-    padding: 25px 24px;
-    grid-template-columns: 150px 1fr 170px;
-    gap: 16px;
-  }
-  .hand {
-    gap: 8px;
-  }
-  .domino {
-    width: 46px;
-    height: 92px;
-  }
-  .hand-caption h2 {
-    font-size: 23px;
-  }
   .scene-heading {
     left: 24px;
   }
@@ -51,9 +24,6 @@
   }
   .view-controls > span {
     display: none;
-  }
-  .move-actions button {
-    padding: 11px 12px;
   }
   .brand h1 {
     font-size: 36px;
@@ -120,7 +90,7 @@
     font-size: 17px;
   }
   #yard {
-    height: calc(100svh - 350px);
+    height: calc(100svh - 122px);
     min-height: 340px;
   }
   .scene-heading {
@@ -162,67 +132,6 @@
   }
   #reset-view {
     display: none;
-  }
-  .hand-area {
-    padding: 17px 16px 18px;
-    grid-template-columns: 1fr auto;
-    gap: 12px;
-    min-height: 228px;
-  }
-  .hand-caption h2 {
-    font-size: 20px;
-    margin: 3px 0 0;
-  }
-  .hand-caption .eyebrow {
-    font-size: 7px;
-  }
-  .hand-caption p {
-    display: none;
-  }
-  .hand-workspace {
-    order: 3;
-    grid-column: 1/-1;
-  }
-  .hand {
-    gap: 5px;
-    width: max-content;
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 12px 4px 25px;
-    overflow-x: auto;
-    justify-content: flex-start;
-  }
-  .domino {
-    width: 44px;
-    height: 88px;
-    padding: 0;
-  }
-  .hand-workspace > p {
-    font-size: 10px;
-    margin: 7px 0 0;
-  }
-  .move-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .move-actions > .eyebrow {
-    display: none;
-  }
-  #end-values {
-    font-size: 22px;
-    margin: 0 3px 0 0;
-  }
-  #end-values span {
-    font-size: 13px;
-    margin: 0 1px;
-  }
-  .move-actions button {
-    font-size: 11px;
-    padding: 9px;
-  }
-  #placement {
-    gap: 5px;
   }
   .player-tag {
     font-size: 8px;
@@ -277,16 +186,6 @@
   }
   nav .outline-button {
     padding-inline: 8px;
-  }
-  .hand-area {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-  .hand {
-    gap: 4px;
-  }
-  .domino {
-    width: 44px;
   }
   .scene-heading .eyebrow {
     max-width: 110px;

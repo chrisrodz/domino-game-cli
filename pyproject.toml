@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.10",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.1.0",
@@ -47,6 +48,16 @@ select = [
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+    "PT",  # flake8-pytest-style
+    "RET",  # flake8-return
+    "ARG",  # flake8-unused-arguments
+    "PIE",  # flake8-pie
+    "PERF",  # perflint
+    "N",  # pep8-naming
+    "FBT",  # flake8-boolean-trap: prefer keyword-only flags
+    "TC",  # flake8-type-checking
 ]
 ignore = [
     "E501",  # line too long, handled by formatter
@@ -56,6 +67,25 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # imported but unused
+# Typer declares flags as boolean parameters; help text uses emoji on purpose.
+"domino_game/cli.py" = ["FBT001", "FBT003", "RUF001", "RUF002"]
+# Blender's bpy API takes positional booleans.
+"tools/*" = ["FBT003"]
+# Tests spell tiles as D(6, 6) for readable fixtures.
+"tests/*" = ["N817"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["domino_game"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+files = ["domino_game", "tests", "main.py"]
+warn_unreachable = true
+
+# Tests may skip annotations, but their bodies are still type-checked.
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+

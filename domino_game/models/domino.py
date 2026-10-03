@@ -44,7 +44,7 @@ class Domino:
         """Return a flipped version of this domino."""
         return Domino(self.right, self.left)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Domino):
             return False
         return (self.left == other.left and self.right == other.right) or (

@@ -1,15 +1,18 @@
-"""Non-blocking turns around the CLI's game, models, AI, and scoring."""
+"""Browser view of a headless `Match`: seat names, hidden hands, and autoplay."""
 
-from copy import deepcopy
-from typing import Any
+import random
+from typing import Any, Optional
 
-from domino_game.game.engine import Game
-from domino_game.game.scoring import calculate_round_score
-from domino_game.models import Board, Domino
+from domino_game.game.match import Match, RoundLog, parse_mode
+from domino_game.game.rules import RuleError
+from domino_game.models import Domino
+
+NAMES = ("You", "Opponent 1", "Ally", "Opponent 2")
+HUMAN = 0
 
 
-class MoveError(ValueError):
-    """A requested action is invalid for this game state."""
+class MoveError(RuleError):
+    """A browser action is invalid for this game state."""
 
 
 def tile_data(tile: Domino) -> dict[str, Any]:
@@ -17,139 +20,144 @@ def tile_data(tile: Domino) -> dict[str, Any]:
 
 
 class PatioSession:
-    """Keep terminal I/O outside browser turns; retain engine behavior."""
+    """One browser match. With autoplay on, the CPU strategy also plays the human seat."""
 
-    def __init__(self, *, target_score: int = 200, game_mode: str = "target_score"):
-        if type(target_score) is not int or not 1 <= target_score <= 1000:
-            raise MoveError("Target score must be an integer from 1 to 1000.")
-        if game_mode not in ("target_score", "single_round"):
-            raise MoveError(f"Unknown game mode: {game_mode!r}.")
-        self.game = Game(game_mode=game_mode, target_score=target_score)
-        self.game.setup_players()
-        self.phase = "playing"
-        self.result = None
-        self.history: list[dict[str, Any]] = []
-        self.rounds: list[dict[str, Any]] = []
+    def __init__(
+        self,
+        *,
+        target_score: int = 200,
+        game_mode: str = "target_score",
+        autoplay: bool = False,
+        rng: Optional[random.Random] = None,
+    ):
+        if type(autoplay) is not bool:
+            raise MoveError(f"Autoplay must be true or false, got {autoplay!r}.")
+        try:
+            self.match = Match(target=target_score, mode=parse_mode(game_mode), rng=rng)
+        except RuleError as error:
+            raise MoveError(str(error)) from error
+        self.autoplay = autoplay
         self.revision = 0
-        self._deal()
 
-    def _deal(self) -> None:
-        game = self.game
-        game.board = Board()
-        game.last_played_team = None
-        game.consecutive_passes = 0
-        game.deal_dominoes()
-        for player in game.players:
-            player.passed_last_turn = False
-        game.current_player_idx = game.find_starting_player()
-        self.phase = "playing"
-        self.result = None
-        self.history = []
-        self.opening = None
-        self.revision += 1
+    @property
+    def phase(self) -> str:
+        return self.match.phase
 
-    def _require_turn(self, *, human: bool) -> None:
-        if self.phase != "playing":
+    def _require_human_turn(self) -> None:
+        if self.match.phase != "playing":
             raise MoveError("This round has ended. Start the next round or a new game.")
-        is_human_turn = self.game.current_player_idx == 0
-        if is_human_turn != human:
-            raise MoveError("Wait for your turn." if human else "The current turn belongs to you.")
+        if self.autoplay:
+            raise MoveError("Autoplay is on. Turn it off to take your seat.")
+        if self.match.turn != HUMAN:
+            raise MoveError("Wait for your turn.")
 
-    def play(self, tile_id: str, position: str) -> None:
-        self._require_turn(human=True)
-        player = self.game.players[0]
-        valid = player.get_valid_moves(self.game.board)
-        chosen = next((move for move in valid if tile_data(move[0])["id"] == tile_id and move[1] == position), None)
+    def play(self, tile_id: Any, position: Any) -> None:
+        self._require_human_turn()
+        chosen = next(
+            (move for move in self.match.legal_moves(HUMAN) if tile_data(move[0])["id"] == tile_id and move[1] == position),
+            None,
+        )
         if chosen is None:
             raise MoveError(f"Tile {tile_id!r} cannot be played on {position!r}. Choose a highlighted tile and end.")
-        self._take_turn(chosen)
+        self.match.play(HUMAN, *chosen)
+        self.revision += 1
 
     def pass_turn(self) -> None:
-        self._require_turn(human=True)
-        if self.game.players[0].get_valid_moves(self.game.board):
+        self._require_human_turn()
+        if self.match.legal_moves(HUMAN):
             raise MoveError("You have a legal move. Play a highlighted tile before passing.")
-        self._take_turn(None)
+        self.match.pass_turn(HUMAN)
+        self.revision += 1
 
     def step_cpu(self) -> None:
-        self._require_turn(human=False)
-        game = self.game
-        player = game.players[game.current_player_idx]
-        moves = player.get_valid_moves(game.board)
-        self._take_turn(game.cpu_strategy.get_best_move(player, moves, game.board))
-
-    def _take_turn(self, chosen) -> None:
-        game = self.game
-        player = game.players[game.current_player_idx]
-        event: dict[str, Any] = {"player": game.current_player_idx, "name": player.name, "type": "pass"}
-        if chosen:
-            tile, position = chosen
-            if not game.board.play_domino(tile, on_left=position == "left"):
-                raise MoveError(f"Board rejected tile {tile} on {position}; no turn was consumed.")
-            player.remove_domino(tile)
-            if position == "first":
-                self.opening = tile_data(tile)["id"]
-            player.passed_last_turn = False
-            game.consecutive_passes = 0
-            game.last_played_team = player.team
-            event.update(type="play", tile=tile_data(tile), position=position)
-        else:
-            player.passed_last_turn = True
-            game.consecutive_passes += 1
-        self.history.append(event)
+        if self.match.phase != "playing":
+            raise MoveError("This round has ended. Start the next round or a new game.")
+        if self.match.turn == HUMAN and not self.autoplay:
+            raise MoveError("The current turn belongs to you.")
+        self.match.auto_turn(self.match.turn)
         self.revision += 1
-        if player.is_out() or game.consecutive_passes >= 4:
-            team, points = calculate_round_score(game.players, game.board, game.last_played_team)
-            game.team_scores[team] += points
-            match_over = game.game_mode == "single_round" or max(game.team_scores) >= game.target_score
-            self.phase = "match_over" if match_over else "round_over"
-            self.result = {"team": team, "points": points, "blocked": game.consecutive_passes >= 4}
-            self.rounds.append(
-                {
-                    "round": game.round_number,
-                    **self.result,
-                    "scores": game.team_scores.copy(),
-                    "winner": player.name if player.is_out() else None,
-                    "unplayed": [
-                        {"name": participant.name, "value": participant.hand_value()} for participant in game.players
-                    ],
-                }
-            )
-        else:
-            game.current_player_idx = (game.current_player_idx + 1) % 4
 
     def next_round(self) -> None:
-        if self.phase != "round_over":
+        if self.match.phase != "round_over":
             raise MoveError("A next round is available only after an unfinished match's round ends.")
-        self.game.round_number += 1
-        self._deal()
+        self.match.next_round()
+        self.revision += 1
+
+    def set_autoplay(self, enabled: Any) -> None:
+        if type(enabled) is not bool:
+            raise MoveError(f"Autoplay must be true or false, got {enabled!r}.")
+        self.autoplay = enabled
+        self.revision += 1
+
+    def _round_entry(self, log: RoundLog) -> dict[str, Any]:
+        outcome = log.result()
+        if log.scores is None:
+            raise MoveError(f"Round {log.number} was scored without running totals.")
+        return {
+            "round": log.number,
+            "team": outcome.team,
+            "points": outcome.points,
+            "blocked": outcome.blocked,
+            "scores": list(log.scores),
+            "winner": None if outcome.blocked else NAMES[outcome.closer],
+            "leader": NAMES[log.leader],
+            "nextLeader": NAMES[outcome.next_leader],
+            "teamPips": list(outcome.team_pips),
+            "unplayed": [{"name": name, "value": value} for name, value in zip(NAMES, outcome.hand_pips)],
+        }
 
     def snapshot(self) -> dict[str, Any]:
-        game = self.game
-        moves = game.players[0].get_valid_moves(game.board) if self.phase == "playing" and game.current_player_idx == 0 else []
+        match = self.match
+        log = match.round
+        playing = match.phase == "playing"
+        moves = match.legal_moves(HUMAN) if playing and not self.autoplay else []
+        opening = next((turn.tile for turn in log.turns if turn.tile is not None), None)
+        history = [
+            {"player": turn.seat, "name": NAMES[turn.seat], "type": "pass"}
+            if turn.tile is None
+            else {
+                "player": turn.seat,
+                "name": NAMES[turn.seat],
+                "type": "play",
+                "tile": tile_data(turn.tile),
+                "position": turn.end,
+            }
+            for turn in log.turns[-12:]
+        ]
+        outcome = log.outcome
         return {
             "revision": self.revision,
-            "phase": self.phase,
-            "round": game.round_number,
-            "target": game.target_score,
-            "mode": game.game_mode,
-            "turn": game.current_player_idx,
-            "scores": game.team_scores.copy(),
-            "board": [tile_data(tile) for tile in game.board.dominoes],
-            "opening": self.opening,
-            "ends": {"left": game.board.left_value(), "right": game.board.right_value()},
+            "phase": match.phase,
+            "round": log.number,
+            "leader": log.leader,
+            "target": match.target,
+            "mode": match.mode,
+            "autoplay": self.autoplay,
+            "turn": match.turn,
+            "scores": match.scores.copy(),
+            "board": [tile_data(tile) for tile in match.board.dominoes],
+            "opening": tile_data(opening)["id"] if opening else None,
+            "ends": {"left": match.board.left_value(), "right": match.board.right_value()},
             "players": [
                 {
-                    "name": player.name,
-                    "team": player.team,
-                    "count": len(player.hand),
-                    "passed": player.passed_last_turn,
-                    "hand": [tile_data(tile) for tile in player.hand] if index == 0 or self.phase != "playing" else None,
-                    "value": player.hand_value() if index == 0 or self.phase != "playing" else None,
+                    "name": name,
+                    "team": seat % 2,
+                    "count": len(hand),
+                    "passed": match.passed[seat],
+                    "hand": [tile_data(tile) for tile in hand] if seat == HUMAN or not playing else None,
+                    "value": sum(tile.value() for tile in hand) if seat == HUMAN or not playing else None,
                 }
-                for index, player in enumerate(game.players)
+                for seat, (name, hand) in enumerate(zip(NAMES, match.hands))
             ],
             "moves": [{"tile": tile_data(tile)["id"], "position": position} for tile, position in moves],
-            "history": self.history[-12:],
-            "result": self.result,
-            "rounds": deepcopy(self.rounds),
+            "history": history,
+            "result": None
+            if outcome is None
+            else {
+                "team": outcome.team,
+                "points": outcome.points,
+                "blocked": outcome.blocked,
+                "nextLeader": outcome.next_leader,
+            },
+            "rounds": [self._round_entry(entry) for entry in match.rounds if entry.outcome is not None],
         }

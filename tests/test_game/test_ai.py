@@ -1,6 +1,7 @@
 """Tests for AI strategies."""
 
 from domino_game.game.ai import SimpleStrategy
+from domino_game.game.rules import Move, legal_moves
 from domino_game.models import Board, Domino, Player, PlayerType
 
 
@@ -16,8 +17,8 @@ def test_simple_strategy():
     player.add_domino(Domino(2, 2))  # value 4, double (bonus)
 
     # Empty board - first move
-    valid_moves = player.get_valid_moves(board)
-    best_move = strategy.get_best_move(player, valid_moves, board)
+    valid_moves = legal_moves(player.hand, board)
+    best_move = strategy.get_best_move(player.hand, valid_moves, board)
 
     assert best_move is not None
     assert best_move in valid_moves
@@ -34,10 +35,11 @@ def test_simple_strategy_prefers_doubles():
     player.add_domino(Domino(3, 6))  # value 9, not double
     player.add_domino(Domino(3, 3))  # value 6, double (gets +5 bonus = 11)
 
-    valid_moves = player.get_valid_moves(board)
-    best_move = strategy.get_best_move(player, valid_moves, board)
+    valid_moves = legal_moves(player.hand, board)
+    best_move = strategy.get_best_move(player.hand, valid_moves, board)
 
     # With bonus, double should be preferred despite lower base value
+    assert best_move is not None
     assert best_move[0].is_double() or best_move[0].value() >= 9
 
 
@@ -47,7 +49,7 @@ def test_simple_strategy_no_moves():
     player = Player("CPU", PlayerType.CPU, 1)
     board = Board()
 
-    valid_moves = []
-    best_move = strategy.get_best_move(player, valid_moves, board)
+    valid_moves: list[Move] = []
+    best_move = strategy.get_best_move(player.hand, valid_moves, board)
 
     assert best_move is None

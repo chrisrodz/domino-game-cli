@@ -40,8 +40,11 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Verify 3D domino layout
-        run: node --test tests/test_patio_layout.mjs
+      - name: Verify 3D domino layout and table controls
+        run: node --test tests/test_patio_layout.mjs tests/test_patio_controls.mjs
+
+      - name: Audit all-CPU matches against the rules
+        run: uv run python main.py simulate --matches 500 --seed 2026
 
   lint:
     runs-on: ubuntu-latest
@@ -72,3 +75,6 @@ jobs:
         run: |
           # Check formatting
           uv run ruff format --check .
+
+      - name: Type check with mypy (strict)
+        run: uv run mypy

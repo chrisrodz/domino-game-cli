@@ -17,7 +17,12 @@ Caribbean-style domino games, primarily based on Puerto Rican "Doscientos" rules
 
 1. Each player draws 7 dominoes
 2. First player must play double-six if they have it
-3. Subsequent rounds: winner of previous hand starts
+3. Subsequent rounds: winner of previous hand starts, with any tile. After a
+   blocked hand, the winning team's player with fewer pips starts (the closer,
+   when the teams tie).
+
+The engine implements exactly these rules in `domino_game/game/rules.py`;
+`domino_game/game/referee.py` re-checks them independently.
 
 ### Playing Turns
 
@@ -55,9 +60,12 @@ Caribbean-style domino games, primarily based on Puerto Rican "Doscientos" rules
 
 #### 2. Blocked Game ("Trancado")
 
-- Winner: Player with lowest total spots on remaining dominoes
-- Points: Sum of spots on ALL other players' dominoes
-- Example: Player A has 12 spots, others have 15, 18, 22 → Player A wins and scores 55 points
+- Detected the moment the closing tile is played: no seat can match either end
+- Winner: the team whose two hands hold fewer spots in total
+- Tie: the team that played the closing tile wins
+- Points: sum of spots on ALL four hands
+- Example: You 8 + Ally 9 = 17 against 6 + 12 = 18 → You & Ally win 35 points,
+  even though an opponent holds the single lowest hand
 
 ### Special Scoring Rules
 

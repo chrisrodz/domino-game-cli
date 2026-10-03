@@ -1,6 +1,6 @@
 """CLI interface for Caribbean Domino Game."""
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import typer
 from rich import box
@@ -9,6 +9,9 @@ from rich.panel import Panel
 
 from domino_game.game.engine import Game
 from domino_game.ui.setup_menu import SetupMenu
+
+if TYPE_CHECKING:
+    from domino_game.game.match import Mode
 
 console = Console()
 app = typer.Typer(help="Caribbean Domino Game - 2v2 Domino Game CLI")
@@ -19,19 +22,50 @@ def patio(
     port: int = typer.Option(8000, min=1, max=65535, help="Local browser port"),
     target: int = typer.Option(200, min=1, max=1000, help="Target score"),
     single_round: bool = typer.Option(False, "--single-round", help="Play one round"),
+    autoplay: bool = typer.Option(False, "--autoplay", help="Watch CPUs play every seat, including yours"),
     browser: bool = typer.Option(True, "--browser/--no-browser", help="Open the browser automatically"),
-):
+) -> None:
     """Play the existing 2v2 game at a Blender-built 3D patio table."""
     from domino_game.patio.server import serve
     from domino_game.patio.session import MoveError
 
     try:
         serve(
-            port=port, target_score=target, game_mode="single_round" if single_round else "target_score", open_browser=browser
+            port=port,
+            target_score=target,
+            game_mode="single_round" if single_round else "target_score",
+            autoplay=autoplay,
+            open_browser=browser,
         )
     except MoveError as error:
         console.print(f"[red]{error}[/red]")
         raise typer.Exit(1) from error
+
+
+@app.command()
+def simulate(
+    matches: int = typer.Option(200, "--matches", "-n", min=1, max=100_000, help="Matches to play"),
+    target: int = typer.Option(200, min=1, max=1000, help="Target score"),
+    single_round: bool = typer.Option(False, "--single-round", help="Each match is one round"),
+    seed: Optional[int] = typer.Option(None, help="Base seed; match N uses seed + N"),
+) -> None:
+    """Play all-CPU matches headlessly and audit every turn against the rules."""
+    from domino_game.game.simulate import simulate as run
+
+    report = run(matches=matches, target=target, mode="single_round" if single_round else "target_score", seed=seed)
+    blocked_share = report.blocked / report.rounds if report.rounds else 0
+    console.print(
+        f"{report.matches} matches, {report.rounds} rounds "
+        f"({report.rounds / report.matches:.1f} per match), "
+        f"{report.blocked} tranques ({blocked_share:.0%}, {report.tied_blocks} tied).\n"
+        f"Match wins: You & Ally {report.team_wins[0]}, Opponents {report.team_wins[1]}."
+    )
+    if report.violations:
+        for problem in report.violations[:20]:
+            console.print(f"[red]{problem}[/red]")
+        console.print(f"[red]{len(report.violations)} rule violations.[/red]")
+        raise typer.Exit(1)
+    console.print("[green]Referee: no rule violations.[/green]")
 
 
 @app.command()
@@ -40,7 +74,7 @@ def play(
     quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins"),
     single_round: bool = typer.Option(False, "--single-round", "-s", help="Play a single round only"),
     skip_setup: bool = typer.Option(False, "--skip-setup", help="Skip setup menu (use with other flags)"),
-):
+) -> None:
     """
     🎲 Start a new game of Caribbean Dominoes!
 
@@ -51,6 +85,7 @@ def play(
 
     if skip_setup or has_cli_config:
         # Use CLI flags directly
+        game_mode: Mode
         if single_round:
             game_mode = "single_round"
             final_target = 0  # Not used in single round
@@ -73,7 +108,7 @@ def play(
 
 
 @app.command()
-def rules():
+def rules() -> None:
     """
     📖 Display the game rules and instructions
     """
@@ -82,15 +117,16 @@ def rules():
         "[bold]Setup:[/bold]\n"
         "  • 4 players in 2 teams (You + Ally vs 2 Opponents)\n"
         "  • Each player gets 7 dominoes from a double-six set\n"
-        "  • First round starts with the [6|6] domino\n\n"
+        "  • Round 1: the [6|6] holder opens with it\n"
+        "  • Later rounds: the previous round's winner opens with any tile\n\n"
         "[bold]Gameplay:[/bold]\n"
         "  • Players take turns counter-clockwise\n"
         "  • Match your domino to either end of the line\n"
         "  • If you can't play, you must pass\n"
-        "  • Round ends when someone plays all dominoes or all players pass\n\n"
+        "  • Round ends when someone plays all dominoes or no one can play (tranque)\n\n"
         "[bold]Scoring:[/bold]\n"
-        "  • Winner scores the sum of all remaining dominoes in other players' hands\n"
-        "  • If game is blocked, player with lowest hand value wins\n"
+        "  • Domino: the winner's team scores every pip left in all hands\n"
+        "  • Tranque: the team with fewer pips scores them all; ties go to the closer\n"
         "  • First team to reach target score (default: 200) wins!\n\n"
         "[bold]Controls:[/bold]\n"
         "  • Use ↑↓ arrow keys to navigate menus\n"
@@ -105,7 +141,7 @@ def rules():
 
 
 @app.command()
-def about():
+def about() -> None:
     """
     ℹ️  About Caribbean Dominoes CLI
     """
@@ -130,6 +166,6 @@ def about():
     console.print(about_panel)
 
 
-def main():
+def main() -> None:
     """Main entry point for the CLI."""
     app()

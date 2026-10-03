@@ -1,6 +1,6 @@
 #yard {
-  height: calc(100svh - 312px);
-  min-height: 300px;
+  height: calc(100svh - 96px);
+  min-height: 360px;
   position: relative;
   overflow: hidden;
   background: #c6cbbb;
@@ -203,84 +203,6 @@
   height: 50px;
   animation: load 1.5s ease-in-out infinite;
 }
-.hand-area {
-  min-height: 216px;
-  padding: 27px 42px 22px;
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(360px, 2fr) minmax(180px, 1fr);
-  gap: 24px;
-  align-items: center;
-}
-.hand-caption h2 {
-  font:
-    25px/1.2 Georgia,
-    serif;
-  margin: 9px 0;
-}
-.hand-caption p {
-  font-size: 11px;
-  color: var(--muted);
-  margin: 0;
-}
-.hand-workspace {
-  text-align: center;
-}
-.hand {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  min-height: 104px;
-  align-items: center;
-}
-.domino {
-  width: 50px;
-  height: 100px;
-  flex-shrink: 0;
-  background: #d6ceb8;
-  border: 0;
-  border-radius: 8px;
-  box-shadow:
-    0 4px 0 #354a3a,
-    1px 6px 8px #23322020;
-  display: block;
-  padding: 0;
-  position: relative;
-  color: var(--green);
-}
-.domino:before {
-  content: attr(data-key);
-  position: absolute;
-  bottom: -21px;
-  left: 0;
-  right: 0;
-  font-size: 10px;
-  color: #717b66;
-}
-.domino.legal {
-  box-shadow:
-    0 4px 0 #354a3a,
-    0 0 0 2px #81954880,
-    1px 6px 8px #23322020;
-}
-.domino.selected {
-  transform: translateY(-10px);
-  box-shadow:
-    0 5px 0 #354a3a,
-    0 0 0 3px #385435,
-    0 10px 16px #23322025;
-}
-.domino:not(.legal):not(.selected) {
-  opacity: 0.72;
-}
-.domino:disabled {
-  opacity: 0.72;
-}
-.domino:hover:not(:disabled) {
-  transform: translateY(-6px);
-}
-.domino.selected:hover {
-  transform: translateY(-10px);
-}
 .domino-face {
   width: 100%;
   height: 100%;
@@ -303,37 +225,4 @@
   fill: #b79a53;
   stroke: #715b29;
   stroke-width: 0.6;
-}
-.hand-workspace > p {
-  font-size: 11px;
-  color: #56614f;
-  margin: 27px 0 0;
-  line-height: 1.4;
-}
-.move-actions {
-  text-align: right;
-}
-.move-actions > .eyebrow {
-  color: var(--muted);
-}
-#end-values {
-  font:
-    28px Georgia,
-    serif;
-  margin: 5px 0 12px;
-}
-#end-values span {
-  font:
-    italic 17px Georgia,
-    serif;
-  color: #969e89;
-  margin: 0 6px;
-}
-#placement {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-.move-actions button {
-  padding: 11px 16px;
 }

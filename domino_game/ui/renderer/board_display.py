@@ -7,12 +7,14 @@ from rich.box import DOUBLE, ROUNDED
 from rich.panel import Panel
 from rich.text import Text
 
+from domino_game.models import Board, Domino
+
 
 class BoardDisplay:
     """Renders the domino chain in the center of the table."""
 
     @staticmethod
-    def render_board(board, last_played_domino: Optional[object] = None) -> Panel:
+    def render_board(board: Board, last_played_domino: Optional[Domino] = None) -> Panel:
         """
         Create a visual representation of the domino board.
 
