@@ -238,7 +238,8 @@ for location, height in [
     ((0.6, 6.8), 4.6),
     ((4.4, 5.3), 5.1),
     ((6.3, 2.8), 4.1),
-    ((-6.4, 0.4), 3.5),
+    # Low shoots need clearance behind the left chair, including its back slats.
+    ((-7.6, 0.4), 3.5),
     ((-7.8, -2.7), 3.1),
 ]:
     banana_tree(location, height)

@@ -2,6 +2,7 @@
 
 import json
 import struct
+from itertools import product
 from pathlib import Path
 
 import pytest
@@ -67,3 +68,50 @@ def test_felt_sheen_does_not_wash_out_playing_surface():
     felt = next(mat for mat in glb("patio.glb")["materials"] if mat["name"] == "Bottle green woven baize")
     sheen = felt["extensions"]["KHR_materials_sheen"]["sheenColorFactor"]
     assert max(sheen) < 0.1
+
+
+def transform_point(point, node):
+    if "matrix" in node:
+        matrix = node["matrix"]
+        return [sum(matrix[column * 4 + row] * point[column] for column in range(3)) + matrix[12 + row] for row in range(3)]
+    point = [value * scale for value, scale in zip(point, node.get("scale", [1, 1, 1]))]
+    x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+    # Quaternion rotation, applied after scale and before translation as glTF specifies.
+    cross = [y * point[2] - z * point[1], z * point[0] - x * point[2], x * point[1] - y * point[0]]
+    second = [y * cross[2] - z * cross[1], z * cross[0] - x * cross[2], x * cross[1] - y * cross[0]]
+    return [point[i] + 2 * (w * cross[i] + second[i]) + node.get("translation", [0, 0, 0])[i] for i in range(3)]
+
+
+def test_foliage_clears_all_four_chairs():
+    asset = glb("patio.glb")
+    nodes = asset["nodes"]
+    parents = {child: index for index, node in enumerate(nodes) for child in node.get("children", [])}
+
+    def world_bounds(index):
+        points = []
+        for primitive in asset["meshes"][nodes[index]["mesh"]]["primitives"]:
+            bounds = asset["accessors"][primitive["attributes"]["POSITION"]]
+            for corner in product(*zip(bounds["min"], bounds["max"])):
+                ancestor = index
+                while ancestor is not None:
+                    corner = transform_point(corner, nodes[ancestor])
+                    ancestor = parents.get(ancestor)
+                points.append(corner)
+        return [(min(p[axis] for p in points), max(p[axis] for p in points)) for axis in range(3)]
+
+    plants = [
+        (node["name"], world_bounds(index))
+        for index, node in enumerate(nodes)
+        if "mesh" in node
+        and node["name"].startswith(("Banana leaf", "Leaf midrib", "Young banana stem", "Layered banana", "Fibrous stem"))
+    ]
+    chairs = [node for node in nodes if node["name"].startswith("White monobloc chair")]
+    assert len(chairs) == 4
+    assert plants
+    for chair in chairs:
+        parts = [world_bounds(index) for index in chair["children"]]
+        # Reserve a small gap around the whole seat, not just the solid frame/slats.
+        clearance = [(min(p[axis][0] for p in parts) - 0.1, max(p[axis][1] for p in parts) + 0.1) for axis in range(3)]
+        for name, bounds in plants:
+            overlaps = all(a[0] < b[1] and b[0] < a[1] for a, b in zip(clearance, bounds))
+            assert not overlaps, f"{name} intrudes into {chair['name']} clearance"
