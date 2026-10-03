@@ -1,8 +1,11 @@
 """Domino tile model."""
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from rich.text import Text
+if TYPE_CHECKING:
+    # rich is only for terminal output; keep the engine importable without it (e.g. in Pyodide).
+    from rich.text import Text
 
 
 @dataclass
@@ -15,8 +18,10 @@ class Domino:
     def __str__(self) -> str:
         return f"[{self.left}|{self.right}]"
 
-    def to_rich(self) -> Text:
+    def to_rich(self) -> "Text":
         """Return a rich-formatted representation with brackets."""
+        from rich.text import Text
+
         colors = ["red", "green", "blue", "yellow", "magenta", "cyan", "white"]
         left_color = colors[self.left % len(colors)]
         right_color = colors[self.right % len(colors)]
