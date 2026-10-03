@@ -74,7 +74,7 @@ def transform_point(point, node):
     if "matrix" in node:
         matrix = node["matrix"]
         return [sum(matrix[column * 4 + row] * point[column] for column in range(3)) + matrix[12 + row] for row in range(3)]
-    point = [value * scale for value, scale in zip(point, node.get("scale", [1, 1, 1]))]
+    point = [value * scale for value, scale in zip(point, node.get("scale", [1, 1, 1]), strict=True)]
     x, y, z, w = node.get("rotation", [0, 0, 0, 1])
     # Quaternion rotation, applied after scale and before translation as glTF specifies.
     cross = [y * point[2] - z * point[1], z * point[0] - x * point[2], x * point[1] - y * point[0]]
@@ -91,7 +91,7 @@ def test_foliage_clears_all_four_chairs():
         points = []
         for primitive in asset["meshes"][nodes[index]["mesh"]]["primitives"]:
             bounds = asset["accessors"][primitive["attributes"]["POSITION"]]
-            for corner in product(*zip(bounds["min"], bounds["max"])):
+            for corner in product(*zip(bounds["min"], bounds["max"], strict=True)):
                 ancestor = index
                 while ancestor is not None:
                     corner = transform_point(corner, nodes[ancestor])
@@ -113,5 +113,5 @@ def test_foliage_clears_all_four_chairs():
         # Reserve a small gap around the whole seat, not just the solid frame/slats.
         clearance = [(min(p[axis][0] for p in parts) - 0.1, max(p[axis][1] for p in parts) + 0.1) for axis in range(3)]
         for name, bounds in plants:
-            overlaps = all(a[0] < b[1] and b[0] < a[1] for a, b in zip(clearance, bounds))
+            overlaps = all(a[0] < b[1] and b[0] < a[1] for a, b in zip(clearance, bounds, strict=True))
             assert not overlaps, f"{name} intrudes into {chair['name']} clearance"
