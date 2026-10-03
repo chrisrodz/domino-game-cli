@@ -3,6 +3,7 @@ import { OrbitControls } from "/vendor/controls/OrbitControls.js";
 import { GLTFLoader } from "/vendor/loaders/GLTFLoader.js";
 import { mergeGeometries } from "/vendor/utils/BufferGeometryUtils.js";
 import { RoomEnvironment } from "/vendor/environments/RoomEnvironment.js";
+import { createSceneRenderer } from "./scene-renderer.js";
 import { layoutBoard } from "./domino-layout.js";
 import { previewPlacement } from "./placement-preview.js";
 
@@ -27,16 +28,16 @@ export class PatioScene {
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.94;
+    this.renderer.toneMappingExposure = 1.04;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color("#b8c2a5");
-    this.scene.fog = new THREE.Fog("#b8c2a5", 21, 44);
+    this.scene.background = new THREE.Color("#c6cbbb");
+    this.scene.fog = new THREE.Fog("#c6cbbb", 22, 48);
     const environment = new RoomEnvironment();
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(environment, 0.04).texture;
-    this.scene.environmentIntensity = 0.35;
+    this.scene.environmentIntensity = 0.48;
     environment.dispose();
     pmrem.dispose();
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 70);
@@ -50,11 +51,12 @@ export class PatioScene {
     this.controls.minPolarAngle = 0;
     this.controls.maxPolarAngle = Math.PI / 2.6;
     this.controls.saveState();
-    this.scene.add(new THREE.HemisphereLight("#fff8df", "#7e8967", 1.8));
-    const sun = new THREE.DirectionalLight("#fff1dc", 2.8);
-    sun.position.set(-5, 11, 5);
+    this.scene.add(new THREE.HemisphereLight("#dce9f2", "#706044", 0.85));
+    const sun = new THREE.DirectionalLight("#ffe5bf", 3.6);
+    sun.position.set(-3, 9, 6);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    const shadowSize = matchMedia("(pointer: coarse)").matches ? 2048 : 4096;
+    sun.shadow.mapSize.set(shadowSize, shadowSize);
     Object.assign(sun.shadow.camera, {
       left: -12,
       right: 12,
@@ -64,9 +66,12 @@ export class PatioScene {
       far: 35,
     });
     sun.shadow.bias = -0.0002;
-    sun.shadow.normalBias = 0.006;
+    sun.shadow.normalBias = 0.012;
     sun.shadow.radius = 3;
     this.scene.add(sun);
+    const fill = new THREE.DirectionalLight("#c1d8ec", 0.5);
+    fill.position.set(5, 5, -5);
+    this.scene.add(fill);
     this.templates = new Map();
     this.boardTiles = new Map();
     this.handTiles = new Map();
@@ -106,6 +111,7 @@ export class PatioScene {
       const hit = this.raycaster.intersectObjects([...this.handTiles.values()], true)[0];
       if (hit) this.onSelect(hit.object.userData.tileId);
     });
+    this.pipeline = createSceneRenderer(this.renderer, this.scene, this.camera);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(canvas.parentElement);
     this.resize();
@@ -118,6 +124,15 @@ export class PatioScene {
       loader.loadAsync("/assets/patio.glb"),
       loader.loadAsync("/assets/dominoes.glb"),
     ]);
+    const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    for (const asset of [patio, dominoes]) {
+      asset.scene.traverse((node) => {
+        if (!node.isMesh) return;
+        for (const key of ["map", "normalMap", "roughnessMap"]) {
+          if (node.material[key]) node.material[key].anisotropy = anisotropy;
+        }
+      });
+    }
     // Batch static Blender meshes by material; otherwise each leaf vein is a draw call.
     patio.scene.updateMatrixWorld(true);
     const batches = new Map();
@@ -179,6 +194,7 @@ export class PatioScene {
     this.camera.aspect = width / height;
     this.camera.fov = width < 760 ? 53 : 38;
     this.camera.updateProjectionMatrix();
+    this.pipeline.resize(width, height);
   }
 
   tile(tile, { hidden = false, selectable = false } = {}) {
@@ -435,6 +451,6 @@ export class PatioScene {
       tag.style.top = `${((-projected.y + 1) / 2) * rect.height - (index % 2 ? 24 : 0)}px`;
       tag.hidden = projected.z > 1 || Math.abs(projected.x) > 0.95 || Math.abs(projected.y) > 0.82;
     });
-    this.renderer.render(this.scene, this.camera);
+    this.pipeline.render();
   }
 }

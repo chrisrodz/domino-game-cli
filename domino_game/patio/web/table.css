@@ -3,7 +3,20 @@
   min-height: 300px;
   position: relative;
   overflow: hidden;
-  background: #b8c2a5;
+  background: #c6cbbb;
+}
+#yard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 160px;
+  background: linear-gradient(#eef0e4e8, #eef0e400);
+  pointer-events: none;
+  z-index: 1;
+}
+.scene-heading,
+.round-status {
+  z-index: 2;
 }
 #scene {
   width: 100%;
@@ -171,7 +184,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #b8c2a5;
+  background: #c6cbbb;
   z-index: 3;
   transition: opacity 0.5s;
 }
@@ -227,7 +240,7 @@
   border: 0;
   border-radius: 8px;
   box-shadow:
-    0 4px 0 #b7ae95,
+    0 4px 0 #354a3a,
     1px 6px 8px #23322020;
   display: block;
   padding: 0;
@@ -245,14 +258,14 @@
 }
 .domino.legal {
   box-shadow:
-    0 4px 0 #b7ae95,
+    0 4px 0 #354a3a,
     0 0 0 2px #81954880,
     1px 6px 8px #23322020;
 }
 .domino.selected {
   transform: translateY(-10px);
   box-shadow:
-    0 5px 0 #a0af78,
+    0 5px 0 #354a3a,
     0 0 0 3px #385435,
     0 10px 16px #23322025;
 }

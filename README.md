@@ -73,7 +73,19 @@ Requires a browser with WebGL 2. The Python server binds only to loopback;
 it is intended for local play. All browser dependencies and assets are included,
 so playing requires no internet connection or Node.js tooling.
 
+The courtyard uses handmade terracotta pavers, a limewashed garden wall,
+veined banana foliage, glazed espresso cups, and a mahogany table with brass
+joinery and woven green baize. Ivory dominoes have recessed pips, brass spinners,
+and green backs. The hand controls share their ivory and brass finish.
+
+Albedo, roughness, and normal maps are authored by the Blender build scripts
+and packed into the assets; no texture downloads are needed. Desktop rendering
+adds contact shading and 4096-pixel sun shadows. Touch devices skip the contact
+shading pass and use 2048-pixel shadows to reduce GPU work.
+
 The editable scene is `domino_game/patio/web/assets/el-patio.blend`.
+Its collections separate the courtyard, all 28 master tiles, and a staged
+presentation arrangement. Presentation tiles stay out of the playable exports.
 To rebuild the two GLB files with Blender 4.5 or later:
 
 ```bash
