@@ -9,6 +9,7 @@ from domino_game.game.engine import Game, IllegalMoveError
 from domino_game.game.jev import JevStrategy, JevUnavailableError
 from domino_game.models import Domino, PlayerType
 from domino_game.models.player import AIDifficulty
+from tests.game_fixtures import complete_table
 
 
 def test_dealing():
@@ -143,6 +144,7 @@ def test_fallback_is_visible_in_both_displays(full_screen, monkeypatch, capsys):
     game.jev_strategy.choose_move.side_effect = JevUnavailableError("Jev timed out")
     game.board.play_domino(Domino(6, 2))
     game.players[1].hand = [Domino(5, 6), Domino(2, 4)]
+    complete_table(game)
     assert game.play_turn(game.players[1])
     assert game.turn_history[-1].tile == (5, 6)
     if full_screen:

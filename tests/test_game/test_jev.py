@@ -13,6 +13,7 @@ from domino_game.game.jev import AIConfigurationError, JevStrategy, JevUnavailab
 from domino_game.game.observation import build_observation
 from domino_game.models import Domino
 from domino_game.models.player import AIDifficulty
+from tests.game_fixtures import complete_table
 
 
 @pytest.fixture
@@ -20,8 +21,8 @@ def game(monkeypatch):
     monkeypatch.setattr("domino_game.game.engine.time.sleep", lambda _: None)
     game = Game(cpu_settings=CPUSettings(opponent_1=AIDifficulty.MEDIUM))
     game.setup_players()
-    game.board.play_domino(Domino(6, 2))
     game.players[1].hand = [Domino(2, 4), Domino(5, 6), Domino(3, 3)]
+    complete_table(game)
     return game
 
 
@@ -31,20 +32,26 @@ def client_for(handler):
     )
 
 
-def answer(choice="move_0", confidence=0.1):
+def answer(payload, confidence=0.1):
+    answers = {}
+    for identifier, question in payload["questions"].items():
+        if question["type"] == "noul":
+            answers[identifier] = {"type": "noul", "noul": 0.5}
+        else:
+            level = 4 if identifier.startswith("move_0") else 0
+            answers[identifier] = {
+                "type": "score",
+                "score": float(level),
+                "confidence": confidence,
+                "legend": {str(index): description for index, description in enumerate(question["criteria"])},
+                "probabilities": {str(index): float(index == level) for index in range(5)},
+            }
     return httpx2.Response(
         200,
         json={
             "model": "jev-test",
             "usage": {"input_tokens": 100, "output_tokens": 10},
-            "answers": {
-                "move": {
-                    "type": "choice",
-                    "choice": choice,
-                    "confidence": confidence,
-                    "probabilities": {"move_0": 0.6, "move_1": 0.4},
-                }
-            },
+            "answers": answers,
         },
     )
 
@@ -54,15 +61,16 @@ def test_sdk_sends_complete_options_and_accepts_low_confidence(game):
 
     def handler(request):
         requests.append(json.loads(request.content))
-        return answer()
+        return answer(requests[-1])
 
     with client_for(handler) as client:
         game.jev_strategy = JevStrategy(client)
         moves = game.players[1].get_valid_moves(game.board)
         assert game.get_cpu_move(game.players[1], moves) == (Domino(2, 4), "right")
     assert len(requests) == 1
-    assert set(requests[0]["questions"]) == {"move"}
-    assert requests[0]["questions"]["move"]["criteria"]["move_0"]["side"] == "right"
+    assert len(requests[0]["questions"]) == 6
+    assert all(question["type"] == "score" for question in requests[0]["questions"].values())
+    assert requests[0]["state"]["candidates"]["move_0"]["side"] == "right"
     assert requests[0]["state"]["own_hand"] == [[2, 4], [5, 6], [3, 3]]
     assert game.cpu_warning is None
 
@@ -107,7 +115,7 @@ def test_configuration_errors_stop_instead_of_silently_switching_ai(game, status
 @pytest.mark.parametrize(
     "response",
     [
-        answer("unlisted"),
+        httpx2.Response(200, json={"model": "jev-test", "usage": {}, "answers": {"move": {"type": "noul", "noul": 1.0}}}),
         httpx2.Response(200, json={}),
         httpx2.Response(200, json={"model": "jev-test", "usage": {}, "answers": {}}),
     ],
@@ -159,22 +167,7 @@ def test_two_rounds_record_all_turns_without_leaking_future_history(full_screen,
         else:
             assert "public_turn_history" not in state
             assert "known_missing_numbers_this_round" not in state
-        options = payload["questions"]["move"]["criteria"]
-        return httpx2.Response(
-            200,
-            json={
-                "model": "jev-test",
-                "usage": {},
-                "answers": {
-                    "move": {
-                        "type": "choice",
-                        "choice": next(iter(options)),
-                        "confidence": 1.0,
-                        "probabilities": {option: 1.0 if index == 0 else 0.0 for index, option in enumerate(options)},
-                    }
-                },
-            },
-        )
+        return answer(payload, confidence=1.0)
 
     with client_for(handler) as client:
         game.jev_strategy = JevStrategy(client)

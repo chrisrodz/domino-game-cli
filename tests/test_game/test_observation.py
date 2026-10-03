@@ -2,21 +2,20 @@
 
 import pytest
 
+from domino_game.game.deck import create_deck
 from domino_game.game.engine import Game
 from domino_game.game.observation import RoundRecord, TurnRecord, build_observation
 from domino_game.models import Domino
 from domino_game.models.player import AIDifficulty
+from tests.game_fixtures import complete_table
 
 
 @pytest.fixture
 def game():
     game = Game()
     game.setup_players()
-    game.board.play_domino(Domino(6, 2))
-    game.players[0].hand = [Domino(0, 0), Domino(1, 1)]
     game.players[1].hand = [Domino(2, 4), Domino(5, 6), Domino(3, 3)]
-    game.players[2].hand = [Domino(0, 1), Domino(1, 3)]
-    game.players[3].hand = [Domino(0, 3), Domino(1, 4)]
+    complete_table(game)
     return game
 
 
@@ -35,14 +34,14 @@ def passed(round_number=1, seat=2):
         side=None,
         ends_before=(6, 4),
         ends_after=(6, 4),
-        tiles_remaining=2,
+        tiles_remaining=7,
     )
 
 
 @pytest.mark.parametrize("difficulty", [AIDifficulty.MEDIUM, AIDifficulty.HARD])
 def test_redistributing_hidden_tiles_does_not_change_request(game, difficulty):
     before = observation(game, difficulty=difficulty)
-    game.players[0].hand, game.players[2].hand = game.players[2].hand, game.players[0].hand
+    game.players[2].hand, game.players[3].hand = game.players[3].hand, game.players[2].hand
     assert observation(game, difficulty=difficulty) == before
 
 
@@ -99,5 +98,34 @@ def test_snapshot_does_not_share_mutable_game_data(game):
     game.board.dominoes[0].left = 0
     game.team_scores[0] = 100
     assert view.state["own_hand"][0] == [2, 4]
-    assert view.state["board"] == [[6, 2]]
+    assert view.state["board"][0] == [6, 0]
     assert view.state["team_scores"] == [0, 0]
+
+
+def test_last_connector_can_permanently_strand_a_double():
+    game = Game()
+    game.setup_players()
+    game.round_number = 2
+    game.board.dominoes = [
+        Domino(0, 3),
+        Domino(3, 1),
+        Domino(1, 2),
+        Domino(2, 4),
+        Domino(4, 3),
+        Domino(3, 5),
+        Domino(5, 6),
+        Domino(6, 3),
+    ]
+    player = game.players[1]
+    player.ai_difficulty = AIDifficulty.MEDIUM
+    player.hand = [Domino(2, 3), Domino(3, 3), Domino(2, 2)]
+    unseen = [tile for tile in create_deck() if tile not in [*player.hand, *game.board.dominoes]]
+    for seat, count in ((0, 5), (2, 6), (3, 6)):
+        game.players[seat].hand, unseen = unseen[:count], unseen[count:]
+    view = build_observation(game, player, player.get_valid_moves(game.board))
+    connector = next(candidate for candidate in view.candidates if candidate.tile == (2, 3))
+    double = next(candidate for candidate in view.candidates if candidate.tile == (3, 3))
+    assert connector.facts["remaining_doubles"][0]["permanently_stranded"]
+    assert double.facts["remaining_doubles"][0]["permanently_stranded"] is False
+    assert view.state["own_suit_counts"]["3"] == 2
+    assert "public_turn_history" not in view.state

@@ -58,8 +58,8 @@ All CPUs default to `simple`. Any explicit game or CPU flag skips the setup menu
 | Difficulty | Decision method | Available information |
 |------------|-----------------|-----------------------|
 | `simple` | Local greedy strategy: highest pip value, with a bonus for doubles | Own hand and legal moves |
-| `medium` | TypeSafe Jev | Own hand, current board, public tile counts, team scores, and rules |
-| `hard` | TypeSafe Jev | Medium's information plus all public turns and round results so far |
+| `medium` | Jev scores hand connections, suit control, and double management | Own hand, current board, public tile counts, team scores, and rules |
+| `hard` | Medium's tactics plus partner support, opponent pressure, and blocking | Medium's information plus all public turns and round results so far |
 
 Medium receives no remembered passes, ordered move history, or history-derived features. Hard remembers who played or
 passed and the board ends at each turn. Pass deductions apply only to the current deal. Previous rounds stay in its
@@ -70,11 +70,17 @@ Medium and Hard require internet access and `TYPESAFE_API_KEY` in your environme
 [TypeSafe console](https://console.typesafe.ai/keys). The integration uses the official Python SDK and its model default;
 `TYPESAFE_DEFAULT_MODEL` can override the model. Credentials stay in the environment, outside the repository.
 
-The engine computes exact legal options and their immediate consequences, then asks Jev to select one complete tile/side
-move. Forced moves and passes make no API request. HTTP operations use a two-second timeout without retries. A timeout,
+The engine computes legal moves, suit counts, hand connectivity, possible unseen holdings, and pip bounds in Python.
+Jev evaluates independent tactical questions for each candidate in one request. Python combines the scores using explicit
+weights; Hard shifts priorities when a partner or opponent has few tiles, or a favorable block becomes plausible. Public
+suit signals count only when observed alternatives establish a voluntary choice. Uncertain judgments shrink toward neutral;
+proven passes and finishes retain their full effect. Forced moves, proven wins, and passes make no API request.
+HTTP operations use a two-second timeout without retries. A timeout,
 service failure, or invalid answer uses Simple for that turn, with a visible fallback message. Credential or request
-configuration errors stop the game with an actionable message. Difficulty labels describe the available information;
-comparative playing strength has not been benchmarked.
+configuration errors stop the game with an actionable message. Difficulty labels describe tactical scope and available
+information; a small benchmark does not establish comparative playing strength.
+
+See [Jev decision design](docs/JEV_AI.md) for the questions, weighting policies, privacy boundary, and live comparison command.
 
 AI follows the engine's current rules: later rounds start at seat 0; an empty board offers double-six if held, otherwise
 the first tile in the starting hand. Blocked rounds award all remaining pips, including the winner's, with ties favoring
