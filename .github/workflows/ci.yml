@@ -46,6 +46,30 @@ jobs:
       - name: Audit all-CPU matches against the rules
         run: uv run python main.py simulate --matches 500 --seed 2026
 
+  engine-js:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test, including conformance with the Python engine
+        run: npm test
+
+      - name: Build the package
+        run: npm run build
+
   lint:
     runs-on: ubuntu-latest
 

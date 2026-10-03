@@ -135,6 +135,44 @@ every turn, pass, round result, next leader, and running score. The command
 reports tranque and win rates, and exits non-zero on any violation. CI runs
 500 matches on every push.
 
+### Use the engine from JavaScript or TypeScript
+
+The repository is also `@chrisrodz/dominoes`, a zero-dependency TypeScript port
+of the headless engine for browsers and Node: tiles, board, rules, the `Match`
+state machine, the greedy CPU strategy, the referee, and the simulator. It is
+not on npm yet; install it from GitHub, pinned to a commit:
+
+```bash
+npm install "github:chrisrodz/domino-game-cli#<commit>"
+```
+
+```ts
+import { Match, audit, playOut, simulate } from '@chrisrodz/dominoes';
+
+const match = new Match({ target: 200 });
+match.legalMoves(match.turn); // [{ tile, end }]
+match.autoTurn(match.turn); // CPU move or pass
+const saved = match.toRecord(); // plain JSON: settings, deals, turns
+Match.fromRecord(saved); // replays through the rules; corrupt saves throw RuleError
+audit(playOut(match)); // [] when every turn and score is legal
+simulate({ matches: 500, seed: 1 }).violations; // []
+```
+
+Installing builds `dist/` through the `prepare` script. Sources live in
+`js/src/`; the Python engine stays the reference. The TypeScript suite replays
+seeded matches recorded by Python (`js/test/fixtures/conformance.json`) and must
+reproduce every turn, outcome, and score. After changing the rules or the CPU
+strategy, regenerate the fixture and run both suites:
+
+```bash
+uv run python -m domino_game.game.conformance
+npm install
+npm run typecheck && npm test
+```
+
+The engine tests run TypeScript directly, so they need Node 22.18 or later.
+[El Patio](https://chrisrodz.io/elpatio) runs the browser game on this package.
+
 ### Start a Game
 
 ```bash
@@ -206,6 +244,9 @@ domino-game-cli/
 │   ├── ui/                   # User interface components
 │   │   └── renderer/         # Full-screen rendering
 │   └── cli.py               # CLI commands
+├── js/                       # TypeScript engine package (@chrisrodz/dominoes)
+│   ├── src/
+│   └── test/                 # Includes Python conformance fixtures
 ├── tests/                    # Organized test suite
 │   ├── test_models/
 │   ├── test_game/
