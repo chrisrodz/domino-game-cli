@@ -157,6 +157,27 @@ function turnHint() {
   return `${selected} selected. ${touch ? "Tap it again or tap the end." : "Click it again, click the end, or press Enter."}`;
 }
 
+// Screen readers and Tab users get real buttons for the tiles drawn in the canvas.
+function renderHandAccess() {
+  const focused = document.activeElement?.closest("#hand-access") ? document.activeElement.dataset.tile : null;
+  $("#hand-access").replaceChildren(
+    ...state.players[0].hand.map((tile, index) => {
+      const playable = humanTurn() && choicesFor(tile.id).length > 0;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.tile = tile.id;
+      button.textContent = `${index + 1}: ${tile.left}-${tile.right}${playable ? ", playable" : ""}`;
+      button.setAttribute("aria-pressed", String(selected === tile.id));
+      button.setAttribute("aria-disabled", String(busy || !playable));
+      button.addEventListener("click", () => selectTile(tile.id));
+      button.addEventListener("focus", () => sceneReady && scene.highlight(tile.id));
+      button.addEventListener("blur", () => sceneReady && scene.highlight(null));
+      return button;
+    }),
+  );
+  if (focused) $(`#hand-access [data-tile="${focused}"]`)?.focus({ preventScroll: true });
+}
+
 function renderTurnBar() {
   const mustPass = humanTurn() && !state.moves.length;
   $("#pass-button").hidden = !mustPass;
@@ -245,6 +266,7 @@ function render() {
     $("#last-move").append(label);
   } else $("#last-move").textContent = `Seven tiles each. ${state.players[state.leader].name} opens this round.`;
   renderTurnBar();
+  renderHandAccess();
   renderScorebook(state);
   if (previousPhase !== state.phase) resultVisible = true;
   renderResult();

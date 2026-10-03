@@ -15,6 +15,7 @@ test("number keys select hand positions and stay within seven tiles", () => {
 test("letters map to table actions in either case, but never with modifiers", () => {
   assert.deepEqual(key("l"), { command: "left" });
   assert.deepEqual(key("R"), { command: "right" });
+  assert.deepEqual(key("R", { shiftKey: true }), { command: "right" }, "Shift+R and Caps Lock still play right");
   assert.deepEqual(key("p"), { command: "pass" });
   assert.deepEqual(key("z"), { command: "zen" });
   assert.equal(key("r", { metaKey: true }), null, "Cmd+R must still reload the page");

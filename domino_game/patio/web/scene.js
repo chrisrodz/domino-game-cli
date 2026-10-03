@@ -225,6 +225,11 @@ export class PatioScene {
     return this.raycaster.intersectObjects([...this.handTiles.values()], true)[0]?.object.userData.tileId ?? null;
   }
 
+  highlight(id) {
+    this.hovered = id;
+    this.paintHand();
+  }
+
   paintHand() {
     for (const [id, group] of this.handTiles) {
       const legal = this.playable.has(id);

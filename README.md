@@ -84,9 +84,11 @@ The notebook stays with the match across rounds and browser refreshes.
 off; your preference is remembered by the browser. Tile motion follows the
 playing seat, and respects the browser's reduced-motion preference.
 
-The browser, the terminal game, and the simulator share one headless engine
-(`domino_game/game/match.py`) that follows the Puerto Rican Doscientos rules
-below. Refreshing retains the game while the server runs.
+The browser and the simulator run the same headless match engine
+(`domino_game/game/match.py`). The terminal `play` command keeps its own turn
+loop but uses the same rule functions (`domino_game/game/rules.py`), so all
+three follow the Puerto Rican Doscientos rules below. Refreshing retains the
+game while the server runs.
 Stopping the server clears games. Each browser session gets a separate match.
 
 Requires a browser with WebGL 2. The Python server binds only to loopback;
@@ -246,6 +248,16 @@ Run with coverage:
 ```bash
 uv run pytest --cov=domino_game --cov-report=term-missing
 ```
+
+Lint and type-check (both run in CI):
+
+```bash
+uv run ruff check . && uv run ruff format --check .
+uv run mypy                      # strict; covers domino_game/, tests/, main.py
+```
+
+The Blender build scripts in `tools/` run inside Blender's untyped `bpy` API and
+are linted but not type-checked.
 
 The 3D board geometry uses Node's built-in test runner, with no npm dependencies:
 

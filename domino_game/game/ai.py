@@ -1,42 +1,37 @@
 """CPU AI strategies for domino gameplay."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Optional
 
-from domino_game.models.domino import Domino
+from domino_game.game.rules import Move
+from domino_game.models import Board, Domino
 
 
 class CPUStrategy(ABC):
     """Abstract base class for CPU strategies."""
 
     @abstractmethod
-    def get_best_move(self, player, valid_moves: list[tuple[Domino, str]], board) -> Optional[tuple[Domino, str]]:
+    def get_best_move(self, hand: Sequence[Domino], valid_moves: Sequence[Move], board: Board) -> Optional[Move]:
         """
-        Get the best move for the CPU player.
+        Choose a move for a CPU seat.
 
         Args:
-            player: The CPU player
-            valid_moves: List of valid (domino, position) tuples
+            hand: Every tile the CPU still holds, including ones it cannot play now
+            valid_moves: The legal (domino, end) moves for this turn
             board: The current board state
 
         Returns:
-            The chosen (domino, position) tuple or None
+            One of `valid_moves`, or None when there are none
         """
-        pass
 
 
 class SimpleStrategy(CPUStrategy):
     """Simple greedy strategy: play highest value dominoes, prefer doubles."""
 
-    def get_best_move(self, player, valid_moves: list[tuple[Domino, str]], board) -> Optional[tuple[Domino, str]]:
-        """
-        Simple CPU AI: prioritize high-value dominoes and doubles.
-
-        Strategy: Play highest value domino, prefer doubles.
-        """
-        if not valid_moves:
-            return None
-
+    # The greedy strategy ignores `hand` and `board`; the interface supplies them for smarter strategies.
+    def get_best_move(self, hand: Sequence[Domino], valid_moves: Sequence[Move], board: Board) -> Optional[Move]:  # noqa: ARG002
+        """Play the highest-value tile, with a bonus for doubles; ignores the rest of the hand and the board."""
         best_move = None
         best_score = -1
 

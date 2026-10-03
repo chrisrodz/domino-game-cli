@@ -7,6 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from domino_game.cli import app
+from domino_game.game.ai import CPUStrategy
 from domino_game.game.match import Match, Turn
 from domino_game.game.referee import audit
 from domino_game.game.rules import OPENING_TILE, RuleError
@@ -15,7 +16,7 @@ from domino_game.models import Board
 from domino_game.models import Domino as D
 
 
-def finish_round(match):
+def finish_round(match: Match) -> None:
     while match.phase == "playing":
         match.auto_turn(match.turn)
 
@@ -33,7 +34,7 @@ def test_later_rounds_are_led_by_the_previous_winner_with_any_tile():
     for seed in range(40):
         match = Match(rng=random.Random(seed))
         finish_round(match)
-        winner = match.outcome.next_leader
+        winner = match.round.result().next_leader
         match.next_round()
         assert match.round_number == 2
         assert match.turn == match.round.leader == winner
@@ -52,8 +53,9 @@ def test_tranque_ends_the_round_on_the_closing_tile_without_waiting_for_passes()
     match.play(0, D(6, 1), "left")
     assert match.phase == "round_over"
     assert match.round.turns == [Turn(0, D(6, 1), "left")]
-    outcome = match.outcome
-    assert outcome.blocked and outcome.closer == 0
+    outcome = match.round.result()
+    assert outcome.blocked
+    assert outcome.closer == 0
     assert outcome.team_pips == (4 + 3, 2 + 4)
     assert (outcome.team, outcome.points, outcome.next_leader) == (1, 13, 1)
     assert match.scores == [0, 13]
@@ -66,7 +68,7 @@ def test_going_out_wins_even_when_the_line_is_also_closed():
     match.hands = [[D(1, 6)], [D(0, 2)], [D(0, 3)], [D(0, 4)]]
     match.turn = 0
     match.play(0, D(1, 6), "right")
-    assert (match.outcome.blocked, match.outcome.team, match.outcome.points) == (False, 0, 9)
+    assert (match.round.result().blocked, match.round.result().team, match.round.result().points) == (False, 0, 9)
 
 
 def test_invalid_actions_raise_and_leave_the_match_unchanged():
@@ -89,7 +91,7 @@ def test_single_round_mode_ends_after_one_round():
     match = Match(mode="single_round", rng=random.Random(5))
     finish_round(match)
     assert match.phase == "match_over"
-    assert match.winner == match.outcome.team
+    assert match.winner == match.round.result().team
     with pytest.raises(RuleError):
         match.next_round()
 
@@ -163,13 +165,13 @@ def test_referee_flags_wrong_tranque_winner():
     for _ in range(400):
         if match.phase == "playing":
             match.auto_turn(match.turn)
-        elif match.outcome.blocked and match.outcome.team_pips[0] != match.outcome.team_pips[1]:
+        elif match.round.result().blocked and match.round.result().team_pips[0] != match.round.result().team_pips[1]:
             break
         else:
             match.next_round()
     else:
         pytest.fail("No decisive tranque within 400 actions.")
-    match.round.outcome = replace(match.outcome, team=1 - match.outcome.team)
+    match.round.outcome = replace(match.round.result(), team=1 - match.round.result().team)
     assert any("expected" in problem for problem in audit(match))
 
 
@@ -187,3 +189,25 @@ def test_referee_flags_out_of_turn_and_illegal_opening(played):
     problems = audit(played)
     assert any("instead of [6|6]" in problem for problem in problems)
     assert any("out of order" in problem for problem in problems)
+
+
+def test_auto_turn_gives_strategies_the_seat_hand():
+    seen = []
+
+    class LastMove(CPUStrategy):
+        def get_best_move(self, hand, valid_moves, board):
+            seen.append((list(hand), board.is_empty()))
+            return valid_moves[-1]
+
+    match = Match(rng=random.Random(9))
+    leader = match.turn
+    match.auto_turn(leader, LastMove())
+    assert seen == [(list(match.round.deal[leader]), True)]
+    assert audit(match) == []
+
+
+def test_referee_flags_wrong_pip_breakdown(played):
+    log = played.rounds[0]
+    swapped = (log.outcome.team_pips[1], log.outcome.team_pips[0])
+    log.outcome = replace(log.outcome, team_pips=swapped, hand_pips=(0, 0, 0, log.outcome.points))
+    assert any("recorded pips" in problem for problem in audit(played))

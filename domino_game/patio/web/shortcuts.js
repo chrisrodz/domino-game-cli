@@ -39,7 +39,7 @@ export function commandFor(event) {
   if (key === "Escape") return { command: "clear" };
   // Some keyboards and automation report Shift+/ instead of "?".
   if (key === "?" || (key === "/" && event.shiftKey)) return { command: "help" };
-  const letter = key.length === 1 && !event.shiftKey ? LETTERS[key.toLowerCase()] : undefined;
+  const letter = key.length === 1 ? LETTERS[key.toLowerCase()] : undefined;
   return letter ? { command: letter } : null;
 }
 

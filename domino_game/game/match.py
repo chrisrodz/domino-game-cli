@@ -28,7 +28,16 @@ from domino_game.models import Board, Domino
 
 Phase = Literal["playing", "round_over", "match_over"]
 Mode = Literal["target_score", "single_round"]
+MODES: tuple[Mode, ...] = ("target_score", "single_round")
 MAX_TARGET = 1000
+
+
+def parse_mode(value: object) -> Mode:
+    """Validate an untrusted game mode, such as one from an HTTP payload."""
+    for mode in MODES:
+        if value == mode:
+            return mode
+    raise RuleError(f"Unknown game mode: {value!r}; expected one of {MODES}.")
 
 
 @dataclass(frozen=True)
@@ -49,6 +58,12 @@ class RoundLog:
     scores: Optional[tuple[int, int]] = None
     """Team totals after this round was scored."""
 
+    def result(self) -> RoundOutcome:
+        """The scored outcome; fails loudly for a round still in play."""
+        if self.outcome is None:
+            raise RuleError(f"Round {self.number} has not been scored yet.")
+        return self.outcome
+
 
 class Match:
     """One partnership match played to a target score or for a single round."""
@@ -56,10 +71,8 @@ class Match:
     def __init__(self, *, target: int = 200, mode: Mode = "target_score", rng: Optional[random.Random] = None):
         if type(target) is not int or not 1 <= target <= MAX_TARGET:
             raise RuleError(f"Target score must be an integer from 1 to {MAX_TARGET}, got {target!r}.")
-        if mode not in ("target_score", "single_round"):
-            raise RuleError(f"Unknown game mode: {mode!r}.")
         self.target = target
-        self.mode: Mode = mode
+        self.mode = parse_mode(mode)
         self.rng = rng or random.Random()
         self.scores = [0, 0]
         self.rounds: list[RoundLog] = []
@@ -77,10 +90,6 @@ class Match:
     @property
     def round_number(self) -> int:
         return self.round.number
-
-    @property
-    def outcome(self) -> Optional[RoundOutcome]:
-        return self.round.outcome
 
     def _deal(self, *, leader: Optional[int]) -> None:
         deck = create_deck()
@@ -136,7 +145,7 @@ class Match:
         if not moves:
             self.pass_turn(seat)
         else:
-            choice = strategy.get_best_move(None, moves, self.board)
+            choice = strategy.get_best_move(self.hands[seat], moves, self.board)
             if choice is None:
                 raise RuleError(f"{type(strategy).__name__} returned no move for seat {seat} despite legal moves.")
             self.play(seat, *choice)
@@ -155,9 +164,9 @@ class Match:
             raise RuleError(
                 f"Round {self.round_number} is {self.phase!r}; deal the next round only after a round ends mid-match."
             )
-        self._deal(leader=self.round.outcome.next_leader)
+        self._deal(leader=self.round.result().next_leader)
 
     @property
     def winner(self) -> Optional[int]:
         """Winning team once the match is over; only a round's winners score, so they crossed the target."""
-        return self.round.outcome.team if self.phase == "match_over" else None
+        return self.round.result().team if self.phase == "match_over" else None

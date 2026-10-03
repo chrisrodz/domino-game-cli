@@ -7,7 +7,7 @@ empty list means every turn, round result, and score followed the rules.
 """
 
 from domino_game.game.match import Match
-from domino_game.game.rules import HAND_SIZE, OPENING_TILE, SEATS
+from domino_game.game.rules import HAND_SIZE, OPENING_TILE, SEATS, RoundOutcome
 from domino_game.models import Domino
 
 FULL_SET = {Domino(low, high) for low in range(7) for high in range(low, 7)}
@@ -75,10 +75,11 @@ def audit(match: Match) -> list[str]:
             if log is not match.round:
                 violations.append(f"{tag}: an earlier round was never scored.")
             continue
-        if not finished:
+        # A round only finishes on a play, so a finished round always has a closer.
+        if not finished or closer is None:
             violations.append(f"{tag}: scored while a seat could still play.")
             continue
-        violations += _audit_outcome(log, hands, closer, tag)
+        violations += _audit_outcome(log.outcome, hands, closer, tag)
         scores[log.outcome.team] += log.outcome.points
         if log.scores != tuple(scores):
             violations.append(f"{tag}: recorded totals {log.scores}, expected {tuple(scores)}.")
@@ -106,11 +107,15 @@ def _audit_deal(deal: tuple[tuple[Domino, ...], ...], tag: str) -> list[str]:
     return problems
 
 
-def _audit_outcome(log, hands: list[list[Domino]], closer: int, tag: str) -> list[str]:
-    outcome = log.outcome
+def _audit_outcome(outcome: RoundOutcome, hands: list[list[Domino]], closer: int, tag: str) -> list[str]:
     hand_pips = [sum(tile.value() for tile in hand) for hand in hands]
     team_pips = (hand_pips[0] + hand_pips[2], hand_pips[1] + hand_pips[3])
     problems = []
+    if outcome.hand_pips != tuple(hand_pips) or outcome.team_pips != team_pips:
+        problems.append(
+            f"{tag}: recorded pips {outcome.hand_pips} / teams {outcome.team_pips}, "
+            f"but replay leaves {tuple(hand_pips)} / teams {team_pips}."
+        )
     if outcome.points != sum(hand_pips):
         problems.append(f"{tag}: awarded {outcome.points} points, but {sum(hand_pips)} pips remain.")
     if outcome.closer != closer:
