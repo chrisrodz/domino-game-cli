@@ -62,12 +62,8 @@ class Player:
         for domino in self.hand:
             if domino.has_value(left):
                 moves.append((domino, "left"))
-            if domino.has_value(right) and left != right:
+            if domino.has_value(right):
                 moves.append((domino, "right"))
-            elif domino.has_value(right) and left == right:
-                # Avoid duplicates when both ends are the same
-                if not any(m[0] == domino and m[1] == "left" for m in moves):
-                    moves.append((domino, "right"))
 
         return moves
 

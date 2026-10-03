@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#eeeee1" />
+    <meta name="description" content="Play Caribbean partnership dominoes at a sunlit 3D patio table." />
+    <title>El Patio - Caribbean Dominoes</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='2' width='20' height='28' rx='4' fill='%23eeeedd'/%3E%3Cpath d='M8 16h16' stroke='%232d4230'/%3E%3Cg fill='%232d4230'%3E%3Ccircle cx='12' cy='8' r='2'/%3E%3Ccircle cx='20' cy='12' r='2'/%3E%3Ccircle cx='12' cy='21' r='2'/%3E%3Ccircle cx='20' cy='25' r='2'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/table.css" />
+    <link rel="stylesheet" href="/responsive.css" />
+    <link rel="stylesheet" href="/experience.css" />
+    <script type="importmap">
+      { "imports": { "three": "/vendor/three.module.js" } }
+    </script>
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>El Patio<span class="brand-period">.</span></h1>
+          <p>CARIBBEAN DOMINOES</p>
+        </div>
+      </div>
+      <div class="scoreboard" role="group" aria-label="Team scores">
+        <div><span>You &amp; Ally</span><strong id="score-us">0</strong></div>
+        <span class="score-divider">/</span>
+        <div><span>Opponents</span><strong id="score-them">0</strong></div>
+        <small id="target">FIRST TO 200</small>
+      </div>
+      <nav aria-label="Game controls">
+        <button id="rules-button" class="text-button">
+          <span class="rules-long">How to play</span><span class="rules-short">Rules</span></button
+        ><button id="new-button" class="outline-button">New game <span aria-hidden="true">+</span></button>
+      </nav>
+    </header>
+    <main>
+      <section id="yard" aria-label="3D domino table">
+        <canvas id="scene" aria-label="3D patio. Select your tiles using the hand buttons below."></canvas>
+        <div class="scene-heading">
+          <span class="eyebrow">PUERTO RICO / A SEAT AT THE TABLE</span>
+          <p>Un ratito m&aacute;s.</p>
+        </div>
+        <div class="round-status">
+          <span class="live-dot" aria-hidden="true"></span><span id="round-label">ROUND 01</span
+          ><span class="status-separator">/</span><span id="turn-label">Dealing the tiles</span>
+        </div>
+        <div id="players" role="group" aria-label="Players at the table"></div>
+        <div id="board-ends" role="group" aria-label="Choose an open end"></div>
+        <div id="loading" class="loading">
+          <span class="loading-mark" aria-hidden="true"></span>
+          <p>Setting the table<span class="loading-dots">...</span></p>
+          <small>Pull up a chair.</small>
+        </div>
+        <div class="scene-bottom">
+          <p id="last-move" aria-live="polite">Seven tiles. Four seats. One good afternoon.</p>
+          <div class="view-controls">
+            <span>Drag to look around &middot; Scroll to zoom</span
+            ><button
+              id="view-button"
+              class="scene-button"
+              aria-pressed="false"
+              aria-label="Switch to table view"
+              title="Switch camera view"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="3" />
+                <path d="M8 5v14M16 5v14" /></svg
+              ><span class="control-label">Table view</span></button
+            ><button id="reset-view" class="scene-button" aria-label="Reset camera view" title="Reset camera view">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 10a8 8 0 1 1 1 8M4 4v6h6" /></svg
+              ><span class="control-label">Reset view</span></button
+            ><button
+              id="scorebook-button"
+              class="scene-button"
+              aria-label="Open La libreta, score notebook"
+              title="La libreta"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="3" width="15" height="18" rx="2" />
+                <path d="M3 7h4M3 12h4M3 17h4M10 8h6M10 12h6M10 16h4" /></svg
+              ><span class="control-label">La libreta</span></button
+            ><button
+              id="sound-button"
+              class="scene-button"
+              aria-pressed="false"
+              aria-label="Table sounds"
+              title="Table sounds"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m11 4-6 5H2v6h3l6 5ZM16 8a6 6 0 0 1 0 8" />
+                <path class="sound-slash" d="m3 3 18 18" /></svg
+              ><span class="control-label">Sound off</span></button
+            ><button id="show-result" class="scene-button" aria-label="Show round score" title="Round score" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 20V10M12 20V4M19 20V7" /></svg
+              ><span class="control-label">Round score</span>
+            </button>
+          </div>
+        </div>
+        <section id="result" class="result" aria-label="Round result" hidden>
+          <span id="result-kicker" class="eyebrow">ROUND COMPLETE</span>
+          <h2 id="result-title"></h2>
+          <p id="result-description"></p>
+          <div id="remaining-hands"></div>
+          <div class="result-actions">
+            <button id="continue-button" class="primary-button">Next round</button>
+            <button id="view-board" class="outline-button">View board</button>
+          </div>
+        </section>
+      </section>
+      <section class="hand-area" aria-label="Your domino hand">
+        <div class="hand-caption">
+          <span class="eyebrow">YOUR HAND</span>
+          <h2 id="hand-title">Make yourself at home.</h2>
+          <p id="hand-value">7 tiles &middot; 0 pips</p>
+        </div>
+        <div class="hand-workspace">
+          <div id="hand" class="hand" role="group" aria-label="Select a domino"></div>
+          <p id="hand-hint">Select a highlighted tile, then choose an end.</p>
+        </div>
+        <div class="move-actions">
+          <span id="ends-label" class="eyebrow">OPEN ENDS</span>
+          <div id="end-values">- <span>&amp;</span> -</div>
+          <div id="placement">
+            <button id="play-left" class="primary-button" disabled>Play left</button
+            ><button id="play-right" class="outline-button" disabled>Play right</button>
+          </div>
+          <button id="pass-button" class="primary-button" hidden>Pass turn</button>
+        </div>
+      </section>
+    </main>
+    <div id="error" role="alert" hidden>
+      <span id="error-text"></span><button id="retry-button">Refresh game</button
+      ><button id="dismiss-error" aria-label="Dismiss message">Close</button>
+    </div>
+    <dialog id="rules-dialog" aria-labelledby="rules-title">
+      <button class="dialog-close" data-close aria-label="Close rules">Close</button
+      ><span class="eyebrow">THE WAY WE PLAY</span>
+      <h2 id="rules-title">A little domino etiquette.</h2>
+      <ol>
+        <li>You and Ally play as a team, seated across from each other.</li>
+        <li>Everyone gets seven tiles. The double-six opens the first round. Turns move counter-clockwise.</li>
+        <li>
+          Select a highlighted tile, then choose an end on the table or below your hand. When both ends match, either is
+          available. No legal move? Pass your turn.
+        </li>
+        <li>Empty your hand to win the round. Your team scores the pips in everyone else's hand.</li>
+        <li>
+          Four consecutive passes block the round. The lowest hand wins; ties favor the team that last played. All
+          remaining pips count.
+        </li>
+        <li>The first team to the target score wins. You can also play a single round.</li>
+      </ol>
+      <p class="dialog-note">
+        Controls: click a tile in your hand or on the 3D table. Keys 1-7 select a tile; Enter plays when only one end is
+        available. With a mouse, drag a hand tile to a highlighted end and release to play. Hover or focus an end to
+        preview the placement. Drag the patio to orbit, scroll or pinch to zoom. Use Table view for an overhead view.
+      </p>
+      <button class="primary-button" data-close>Take my seat</button>
+    </dialog>
+    <dialog id="setup-dialog" aria-labelledby="setup-title">
+      <button class="dialog-close" data-close aria-label="Close new game settings">Close</button
+      ><span class="eyebrow">PULL UP A CHAIR</span>
+      <h2 id="setup-title">Another afternoon.</h2>
+      <p>You &amp; Ally against two CPU opponents.</p>
+      <form id="setup-form">
+        <label for="mode">Game mode</label
+        ><select id="mode" name="mode">
+          <option value="target_score">Play to a target score</option>
+          <option value="single_round">One round</option></select
+        ><label for="target-score">Target score</label
+        ><input id="target-score" name="target" type="number" min="1" max="1000" value="200" required />
+        <div class="presets" aria-label="Target score presets">
+          <button type="button" data-target="100">100 &middot; Quick</button
+          ><button type="button" data-target="200">200 &middot; Doscientos</button
+          ><button type="button" data-target="500">500 &middot; Long game</button>
+        </div>
+        <p class="dialog-note">
+          Starting a new game replaces the current match. Scores use the existing game's rules, without bonus points.
+        </p>
+        <button class="primary-button" type="submit">Deal the tiles</button>
+      </form>
+    </dialog>
+    <dialog id="scorebook-dialog" aria-labelledby="scorebook-title">
+      <button class="dialog-close" data-close aria-label="Close score notebook">Close</button>
+      <span class="eyebrow">EVERY HAND HAS A STORY</span>
+      <h2 id="scorebook-title">La libreta<span class="brand-period">.</span></h2>
+      <p id="book-caption"></p>
+      <div class="book-scores" role="group" aria-label="Match totals">
+        <div><span>You &amp; Ally</span><strong id="book-us">0</strong></div>
+        <span class="book-divider" aria-hidden="true">/</span>
+        <div><span>Opponents</span><strong id="book-them">0</strong></div>
+      </div>
+      <p id="book-target" class="eyebrow"></p>
+      <p id="scorebook-empty">Seven fichas each. The first line is yours to write.</p>
+      <table id="scorebook-table" hidden>
+        <caption>
+          Points earned and running totals by hand
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Hand</th>
+            <th scope="col">Finish</th>
+            <th scope="col">You &amp; Ally</th>
+            <th scope="col">Opponents</th>
+          </tr>
+        </thead>
+        <tbody id="scorebook-rows"></tbody>
+      </table>
+      <button class="primary-button" data-close>Back to the table</button>
+    </dialog>
+  </body>
+</html>
