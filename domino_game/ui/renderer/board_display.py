@@ -1,7 +1,5 @@
 """Board rendering for domino game."""
 
-from typing import Optional
-
 from rich.align import Align
 from rich.box import DOUBLE, ROUNDED
 from rich.panel import Panel
@@ -12,7 +10,7 @@ class BoardDisplay:
     """Renders the domino chain in the center of the table."""
 
     @staticmethod
-    def render_board(board, last_played_domino: Optional[object] = None) -> Panel:
+    def render_board(board, last_played_domino: object | None = None) -> Panel:
         """
         Create a visual representation of the domino board.
 

@@ -1,13 +1,14 @@
 """CLI interface for Caribbean Domino Game."""
 
-from typing import Optional
-
 import typer
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
 
+from domino_game.game.ai import CPUSettings
 from domino_game.game.engine import Game
+from domino_game.game.jev import AIConfigurationError
+from domino_game.models.player import AIDifficulty
 from domino_game.ui.setup_menu import SetupMenu
 
 console = Console()
@@ -36,10 +37,13 @@ def patio(
 
 @app.command()
 def play(
-    target_score: Optional[int] = typer.Option(None, "--target", "-t", help="Target score to win the game"),
+    target_score: int | None = typer.Option(None, "--target", "-t", help="Target score to win the game"),
     quick_mode: bool = typer.Option(False, "--quick", "-q", help="Quick mode: first to 100 points wins"),
     single_round: bool = typer.Option(False, "--single-round", "-s", help="Play a single round only"),
     skip_setup: bool = typer.Option(False, "--skip-setup", help="Skip setup menu (use with other flags)"),
+    ally: AIDifficulty | None = typer.Option(None, "--ally", help="Ally CPU difficulty: simple, medium, or hard"),
+    opponent_1: AIDifficulty | None = typer.Option(None, "--opponent-1", help="Opponent 1 CPU difficulty"),
+    opponent_2: AIDifficulty | None = typer.Option(None, "--opponent-2", help="Opponent 2 CPU difficulty"),
 ):
     """
     🎲 Start a new game of Caribbean Dominoes!
@@ -47,7 +51,12 @@ def play(
     Play a 2v2 domino game with arrow key navigation and beautiful interface.
     """
     # Determine if we should show setup menu
-    has_cli_config = quick_mode or single_round or target_score is not None
+    has_cli_config = (
+        quick_mode
+        or single_round
+        or target_score is not None
+        or any(level is not None for level in (ally, opponent_1, opponent_2))
+    )
 
     if skip_setup or has_cli_config:
         # Use CLI flags directly
@@ -62,14 +71,25 @@ def play(
             else:
                 final_target = target_score if target_score is not None else 200
 
-        game = Game(game_mode=game_mode, target_score=final_target)
+        settings = CPUSettings(
+            ally=ally or AIDifficulty.SIMPLE,
+            opponent_1=opponent_1 or AIDifficulty.SIMPLE,
+            opponent_2=opponent_2 or AIDifficulty.SIMPLE,
+        )
+        game = Game(game_mode=game_mode, target_score=final_target, cpu_settings=settings)
     else:
         # Show interactive setup menu
         setup_menu = SetupMenu(console)
         config = setup_menu.run()
-        game = Game(game_mode=config.game_mode, target_score=config.target_score)
+        game = Game(game_mode=config.game_mode, target_score=config.target_score, cpu_settings=config.cpu_settings)
 
-    game.play_game()
+    try:
+        game.play_game()
+    except AIConfigurationError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=1) from None
+    finally:
+        game.close()
 
 
 @app.command()

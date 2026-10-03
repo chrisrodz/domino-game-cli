@@ -1,7 +1,6 @@
 """Main game renderer for full-screen display."""
 
 import time
-from typing import Optional
 
 from rich.align import Align
 from rich.box import ROUNDED
@@ -83,7 +82,7 @@ class GameRenderer:
             return Text(message, style="dim italic", justify="center")
         return Text("Caribbean Dominoes - Press Ctrl+C to quit", style="dim", justify="center")
 
-    def update_display(self, game, valid_moves: Optional[list[tuple]] = None, status_message: str = "", prompt_text: str = ""):
+    def update_display(self, game, valid_moves: list[tuple] | None = None, status_message: str = "", prompt_text: str = ""):
         """
         Update the entire display with current game state.
 
@@ -169,7 +168,7 @@ class GameRenderer:
         time.sleep(seconds)
 
     def prompt_user_input(
-        self, game, prompt_text: str, valid_moves: Optional[list[tuple]] = None, valid_choices: Optional[list[str]] = None
+        self, game, prompt_text: str, valid_moves: list[tuple] | None = None, valid_choices: list[str] | None = None
     ) -> str:
         """
         Prompt user for input while keeping the live display running.

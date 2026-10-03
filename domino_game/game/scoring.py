@@ -1,7 +1,5 @@
 """Scoring logic for domino games."""
 
-from typing import Optional
-
 from rich import box
 from rich.console import Console
 from rich.table import Table
@@ -9,7 +7,7 @@ from rich.table import Table
 console = Console()
 
 
-def calculate_round_score(players: list, board, blocking_team: Optional[int] = None) -> tuple[int, int]:
+def calculate_round_score(players: list, board, blocking_team: int | None = None) -> tuple[int, int]:
     """
     Calculate scores for the round.
 

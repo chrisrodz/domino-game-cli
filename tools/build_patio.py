@@ -101,7 +101,7 @@ def curved_rod(name, points, mat, radius=0.035):
     curve.bevel_resolution = 3
     spline = curve.splines.new("POLY")
     spline.points.add(len(points) - 1)
-    for point, coordinates in zip(spline.points, points):
+    for point, coordinates in zip(spline.points, points, strict=True):
         point.co = (*coordinates, 1)
     obj = bpy.data.objects.new(name, curve)
     bpy.context.collection.objects.link(obj)

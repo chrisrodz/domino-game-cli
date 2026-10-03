@@ -9,6 +9,7 @@ A beautiful, interactive CLI application to play Caribbean dominoes and learn ho
 - **🎨 Beautiful Interface**: Rich, colorful terminal output with panels, tables, and emojis
 - **⌨️ Arrow Key Navigation**: Navigate menus using ↑↓ arrow keys or Vim-style j/k keys
 - **🤖 Smart CPU Opponents**: Play against intelligent CPU players
+- **CPU Difficulty per Player**: Simple local play, Medium Jev decisions, or Hard Jev decisions with public turn history
 - **👥 Team-Based Gameplay**: 2v2 teams (You + Ally vs 2 Opponents)
 - **📊 Real-Time Scoring**: Track scores and progress throughout the game
 - **🎯 Multiple Game Modes**: Standard and quick play modes
@@ -22,7 +23,7 @@ git clone <repository-url>
 cd domino-game-cli
 ```
 
-2. Install dependencies:
+2. Install dependencies (uv uses the Python 3.14.8 pin in `.python-version`):
 ```bash
 uv sync
 ```
@@ -113,6 +114,47 @@ uv run python main.py play --quick
 uv run python main.py play --target 150
 ```
 
+### CPU Difficulty
+
+Choose a difficulty separately for your ally and each opponent in the setup menu, or use flags:
+
+```bash
+uv run python main.py play --single-round --ally hard --opponent-1 medium --opponent-2 simple
+```
+
+All CPUs default to `simple`. Any explicit game or CPU flag skips the setup menu; unspecified CPUs remain `simple`.
+
+| Difficulty | Decision method | Available information |
+|------------|-----------------|-----------------------|
+| `simple` | Local greedy strategy: highest pip value, with a bonus for doubles | Own hand and legal moves |
+| `medium` | Jev scores hand connections, suit control, and double management | Own hand, current board, public tile counts, team scores, and rules |
+| `hard` | Medium's tactics plus partner support, opponent pressure, and blocking | Medium's information plus all public turns and round results so far |
+
+Medium receives no remembered passes, ordered move history, or history-derived features. Hard remembers who played or
+passed and the board ends at each turn. Pass deductions apply only to the current deal. Previous rounds stay in its
+history, but their missing-number deductions expire when tiles are redealt. Neither Jev level receives another player's
+hidden tiles or unrevealed hand value. Public blocked-round hand totals are recorded only after they are displayed.
+
+Medium and Hard require internet access and `TYPESAFE_API_KEY` in your environment. Create a key at the
+[TypeSafe console](https://console.typesafe.ai/keys). The integration uses the official Python SDK and its model default;
+`TYPESAFE_DEFAULT_MODEL` can override the model. Credentials stay in the environment, outside the repository.
+
+The engine computes legal moves, suit counts, hand connectivity, possible unseen holdings, and pip bounds in Python.
+Jev evaluates independent tactical questions for each candidate in one request. Python combines the scores using explicit
+weights; Hard shifts priorities when a partner or opponent has few tiles, or a favorable block becomes plausible. Public
+suit signals count only when observed alternatives establish a voluntary choice. Uncertain judgments shrink toward neutral;
+proven passes and finishes retain their full effect. Forced moves, proven wins, and passes make no API request.
+HTTP operations use a two-second timeout without retries. A timeout,
+service failure, or invalid answer uses Simple for that turn, with a visible fallback message. Credential or request
+configuration errors stop the game with an actionable message. Difficulty labels describe tactical scope and available
+information; a small benchmark does not establish comparative playing strength.
+
+See [Jev decision design](docs/JEV_AI.md) for the questions, weighting policies, privacy boundary, and live comparison command.
+
+AI follows the engine's current rules: later rounds start at seat 0; an empty board offers double-six if held, otherwise
+the first tile in the starting hand. Blocked rounds award all remaining pips, including the winner's, with ties favoring
+the last-playing team. This AI change preserves those behaviors.
+
 ### View Commands
 
 ```bash
@@ -152,7 +194,7 @@ uv run python main.py about
 
 ## 🛠️ Technology Stack
 
-- **Python 3.9+**: Core language
+- **Python 3.14+**: Core language
 - **Typer**: CLI framework with rich help formatting
 - **Rich**: Beautiful terminal output with colors and formatting
 
@@ -219,13 +261,13 @@ Continuous Integration runs automatically on:
 - Pull requests to `main`
 - Pushes to `main` branch
 
-The CI tests the package on Python 3.9, 3.10, 3.11, and 3.12.
+CI runs tests and lint checks on Python 3.14.8, using the same `.python-version` pin as local development.
 
 ## 📝 Commands Reference
 
 | Command | Options | Description |
 |---------|---------|-------------|
-| `play` | `--target/-t`, `--quick/-q` | Start a new game |
+| `play` | `--target/-t`, `--quick/-q`, `--single-round/-s`, `--skip-setup`, `--ally`, `--opponent-1`, `--opponent-2` | Start a new game with independent CPU difficulties |
 | `rules` | - | Display game rules |
 | `about` | - | About the application |
 

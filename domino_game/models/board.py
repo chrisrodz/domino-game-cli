@@ -1,7 +1,5 @@
 """Board model for managing the domino line."""
 
-from typing import Optional
-
 from rich.text import Text
 
 from domino_game.models.domino import Domino
@@ -16,13 +14,13 @@ class Board:
     def is_empty(self) -> bool:
         return len(self.dominoes) == 0
 
-    def left_value(self) -> Optional[int]:
+    def left_value(self) -> int | None:
         """Get the value on the left end of the line."""
         if self.is_empty():
             return None
         return self.dominoes[0].left
 
-    def right_value(self) -> Optional[int]:
+    def right_value(self) -> int | None:
         """Get the value on the right end of the line."""
         if self.is_empty():
             return None

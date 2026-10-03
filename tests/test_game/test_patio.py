@@ -106,7 +106,7 @@ def test_four_passes_score_block_once_and_reveal_hands(session):
     game.board = Board()
     game.board.play_domino(Domino(6, 6))
     game.last_played_team = 1
-    for player, tile in zip(game.players, [Domino(0, 1), Domino(0, 2), Domino(0, 3), Domino(0, 4)]):
+    for player, tile in zip(game.players, [Domino(0, 1), Domino(0, 2), Domino(0, 3), Domino(0, 4)], strict=True):
         player.hand = [tile]
     session.pass_turn()
     for _ in range(3):
@@ -140,7 +140,7 @@ def test_going_out_uses_existing_scorer_and_finishes_single_round():
     game = session.game
     game.current_player_idx = 0
     game.board.play_domino(Domino(6, 6))
-    for player, tile in zip(game.players, [Domino(1, 6), Domino(2, 2), Domino(3, 3), Domino(4, 4)]):
+    for player, tile in zip(game.players, [Domino(1, 6), Domino(2, 2), Domino(3, 3), Domino(4, 4)], strict=True):
         player.hand = [tile]
     session.play("1-6", "left")
     assert game.team_scores == [18, 0]
@@ -179,7 +179,7 @@ def test_complete_matches_conserve_tiles_and_keep_chain_connected(monkeypatch, s
         game = session.game
         tiles = game.board.dominoes + [tile for player in game.players for tile in player.hand]
         assert len(tiles) == len(set(tiles)) == 28
-        assert all(left.right == right.left for left, right in zip(game.board.dominoes, game.board.dominoes[1:]))
+        assert all(left.right == right.left for left, right in zip(game.board.dominoes, game.board.dominoes[1:], strict=False))
     pytest.fail(f"Match with seed {seed} did not finish within 1000 actions.")
 
 
