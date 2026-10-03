@@ -12,7 +12,7 @@ from rich.text import Text
 
 from domino_game.game.ai import SimpleStrategy
 from domino_game.game.deck import create_deck, shuffle_deck
-from domino_game.game.scoring import calculate_round_score
+from domino_game.game.rules import OPENING_TILE, is_blocked, legal_moves, score_round
 from domino_game.models import Board, Domino, Player, PlayerType
 
 console = Console()
@@ -29,11 +29,11 @@ class Game:
         self.game_mode = game_mode  # "target_score" or "single_round"
         self.target_score = target_score
         self.round_number = 1
-        self.consecutive_passes = 0
+        self.next_leader: Optional[int] = None
+        self.last_seat: Optional[int] = None
         self.renderer = None
         self.use_full_screen = True  # Toggle for full-screen mode
         self.cpu_strategy = SimpleStrategy()
-        self.last_played_team: Optional[int] = None
 
     def setup_players(self):
         """Setup 4 players: Human, CPU Ally, 2 CPU Opponents."""
@@ -57,14 +57,35 @@ class Game:
                 player.add_domino(deck.pop())
 
     def find_starting_player(self) -> int:
-        """Find who should start (player with double-six in first round)."""
-        if self.round_number == 1:
+        """The [6|6] holder leads round 1; the previous round's winner leads later rounds."""
+        if self.round_number > 1 and self.next_leader is not None:
+            return self.next_leader
+        return next(idx for idx, player in enumerate(self.players) if player.has_double_six())
+
+    def valid_moves(self, player: Player) -> list[tuple[Domino, str]]:
+        must_open = OPENING_TILE if self.round_number == 1 else None
+        return legal_moves(player.hand, self.board, must_open_with=must_open)
+
+    def round_ended(self) -> bool:
+        """After a play: the player went out, or no seat can match either end (tranque)."""
+        hands = [player.hand for player in self.players]
+        return any(not hand for hand in hands) or is_blocked(hands, self.board)
+
+    def score_current_round(self) -> tuple[int, int]:
+        """Score the finished round, show a tranque's hands, and record who leads next."""
+        outcome = score_round([player.hand for player in self.players], closer=self.last_seat)
+        self.team_scores[outcome.team] += outcome.points
+        self.next_leader = outcome.next_leader
+        if outcome.blocked:
+            console.print("\n[bold red]Tranque![/bold red] Remaining hand values:")
+            blocked_table = Table(box=box.SIMPLE)
+            blocked_table.add_column("Player", style="cyan")
+            blocked_table.add_column("Hand Value", style="yellow", justify="right")
             for idx, player in enumerate(self.players):
-                if player.has_double_six():
-                    return idx
-        # In subsequent rounds, this would be the previous winner
-        # For now, just return 0
-        return 0
+                style = "bold green" if player.team == outcome.team else ""
+                blocked_table.add_row(player.name, f"{outcome.hand_pips[idx]} points", style=style)
+            console.print(blocked_table)
+        return outcome.team, outcome.points
 
     def play_turn(self, player: Player) -> bool:
         """
@@ -76,11 +97,10 @@ class Game:
             return self._play_turn_legacy(player)
 
         # Get valid moves
-        valid_moves = player.get_valid_moves(self.board)
+        valid_moves = self.valid_moves(player)
 
         if not valid_moves:
             player.passed_last_turn = True
-            self.consecutive_passes += 1
 
             # Update display to show pass
             status_msg = f"{player.name} has no valid moves and must PASS."
@@ -96,14 +116,9 @@ class Game:
                 self.renderer.prompt_confirmation(self, "You must pass - no valid moves available.")
 
             time.sleep(1.0)  # Pause so CPU passes are visible
-
-            # Check if game is blocked (all players passed)
-            if self.consecutive_passes >= 4:
-                return False
             return True
 
         player.passed_last_turn = False
-        self.consecutive_passes = 0
 
         # Update display with valid moves
         if player.player_type == PlayerType.HUMAN:
@@ -130,7 +145,7 @@ class Game:
                 self.board.play_domino(domino, on_left=False)
 
             player.remove_domino(domino)
-            self.last_played_team = player.team
+            self.last_seat = self.players.index(player)
 
             # Mark the domino as last played for highlighting
             self.renderer.mark_last_played(domino)
@@ -146,8 +161,7 @@ class Game:
             # Clear the highlight
             self.renderer.clear_last_played()
 
-            # Check if player went out
-            if player.is_out():
+            if self.round_ended():
                 return False
 
         return True
@@ -168,23 +182,17 @@ class Game:
         )
         console.print(board_panel)
 
-        valid_moves = player.get_valid_moves(self.board)
+        valid_moves = self.valid_moves(player)
 
         if not valid_moves:
             console.print(f"[red]{player.name} has no valid moves and must pass.[/red]")
             player.passed_last_turn = True
-            self.consecutive_passes += 1
 
             if player.player_type == PlayerType.HUMAN:
                 Confirm.ask("\nPress Enter to continue", default=True)
-
-            # Check if game is blocked (all players passed)
-            if self.consecutive_passes >= 4:
-                return False
             return True
 
         player.passed_last_turn = False
-        self.consecutive_passes = 0
 
         if player.player_type == PlayerType.HUMAN:
             chosen_move = self.get_human_move(player, valid_moves)
@@ -203,7 +211,7 @@ class Game:
                 self.board.play_domino(domino, on_left=False)
 
             player.remove_domino(domino)
-            self.last_played_team = player.team
+            self.last_seat = self.players.index(player)
             msg = Text("\n")
             msg.append("✓", style="green")
             msg.append(f" {player.name} played ")
@@ -212,8 +220,7 @@ class Game:
             msg.append(position, style="bold")
             console.print(msg)
 
-            # Check if player went out
-            if player.is_out():
+            if self.round_ended():
                 return False
 
         if player.player_type == PlayerType.HUMAN:
@@ -289,9 +296,10 @@ class Game:
             return self._play_round_legacy()
 
         self.board = Board()
-        self.last_played_team = None
+        self.last_seat = None
         self.deal_dominoes()
-        self.consecutive_passes = 0
+        for player in self.players:
+            player.passed_last_turn = False
 
         # Find starting player
         self.current_player_idx = self.find_starting_player()
@@ -315,8 +323,7 @@ class Game:
             self.current_player_idx = (self.current_player_idx + 1) % 4
 
         # Round ended - calculate scores
-        winning_team, points = calculate_round_score(self.players, self.board, self.last_played_team)
-        self.team_scores[winning_team] += points
+        winning_team, points = self.score_current_round()
 
         # Show round results
         self.renderer.stop_live_display()
@@ -352,9 +359,10 @@ class Game:
         console.print(score_table, justify="center")
 
         self.board = Board()
-        self.last_played_team = None
+        self.last_seat = None
         self.deal_dominoes()
-        self.consecutive_passes = 0
+        for player in self.players:
+            player.passed_last_turn = False
 
         # Find starting player
         self.current_player_idx = self.find_starting_player()
@@ -374,8 +382,7 @@ class Game:
             self.current_player_idx = (self.current_player_idx + 1) % 4
 
         # Round ended - calculate scores
-        winning_team, points = calculate_round_score(self.players, self.board, self.last_played_team)
-        self.team_scores[winning_team] += points
+        winning_team, points = self.score_current_round()
 
         console.print()
         console.rule("[bold green]🎉 ROUND COMPLETE 🎉[/bold green]", style="green")

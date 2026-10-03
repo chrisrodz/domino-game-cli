@@ -9,29 +9,39 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 import pytest
 
+from domino_game.game.referee import audit
 from domino_game.models import Board, Domino
+from domino_game.models import Domino as D
 from domino_game.patio.server import PatioServer
 from domino_game.patio.session import MoveError, PatioSession, tile_data
 
 
 @pytest.fixture
-def session(monkeypatch):
-    monkeypatch.setattr("domino_game.game.engine.shuffle_deck", random.Random(66).shuffle)
-    return PatioSession()
+def session():
+    return PatioSession(rng=random.Random(66))
 
 
 def reach_human(session):
-    while session.phase == "playing" and session.game.current_player_idx != 0:
+    while session.phase == "playing" and session.match.turn != 0:
         session.step_cpu()
+
+
+def set_table(session, board, hands, turn=0):
+    match = session.match
+    match.board = Board()
+    for tile in board:
+        match.board.play_domino(tile, on_left=False)
+    match.hands = [list(hand) for hand in hands]
+    match.turn = turn
 
 
 def test_deal_preserves_engine_and_hides_cpu_hands(session):
     snapshot = session.snapshot()
     assert [player["count"] for player in snapshot["players"]] == [7, 7, 7, 7]
-    assert len({tile_data(tile)["id"] for player in session.game.players for tile in player.hand}) == 28
+    assert len({tile_data(tile)["id"] for hand in session.match.hands for tile in hand}) == 28
     assert all(player["hand"] is None and player["value"] is None for player in snapshot["players"][1:])
-    opener = session.game.players[session.game.current_player_idx]
-    assert opener.has_double_six()
+    assert Domino(6, 6) in session.match.hands[snapshot["leader"]]
+    assert snapshot["turn"] == snapshot["leader"]
 
 
 def test_illegal_move_and_illegal_pass_leave_state_unchanged(session):
@@ -58,92 +68,74 @@ def test_valid_move_consumes_one_tile_and_rotates_turn(session):
 
 def test_opening_anchor_survives_left_placements_and_history_truncation(session):
     assert session.snapshot()["opening"] is None
-    game = session.game
-    game.current_player_idx = 0
-    game.players[0].hand = [Domino(6, 6), Domino(1, 6), Domino(0, 0)]
+    set_table(session, [], [[D(6, 6), D(1, 6), D(0, 0)], [D(1, 1)], [D(2, 2)], [D(3, 3)]])
     session.play("6-6", "first")
-    game.current_player_idx = 0
+    session.match.turn = 0
     session.play("1-6", "left")
-    session.history.extend([{"type": "pass"}] * 12)
     snapshot = session.snapshot()
     assert snapshot["opening"] == "6-6"
     assert snapshot["board"][0]["id"] == "1-6"
-    assert not any(event.get("position") == "first" for event in snapshot["history"])
-    session.phase = "round_over"
-    session.next_round()
-    assert session.snapshot()["opening"] is None
 
 
-@pytest.mark.parametrize(
-    "ends,tile", [(Domino(6, 6), Domino(1, 6)), (Domino(2, 6), Domino(2, 6)), (Domino(3, 3), Domino(3, 3))]
-)
+@pytest.mark.parametrize("ends,tile", [(D(6, 6), D(1, 6)), (D(2, 6), D(2, 6)), (D(3, 3), D(3, 3))])
 @pytest.mark.parametrize("position", ["left", "right"])
 def test_tile_matching_both_ends_can_be_played_on_either_side(session, ends, tile, position):
-    session.game.current_player_idx = 0
-    session.game.board.play_domino(ends)
-    session.game.players[0].hand = [tile, Domino(0, 0)]
+    set_table(session, [ends], [[tile, D(0, 0)], [D(0, 1)], [D(0, 2)], [D(0, 3)]])
     moves = session.snapshot()["moves"]
     assert {move["position"] for move in moves if move["tile"] == tile_data(tile)["id"]} == {"left", "right"}
     session.play(tile_data(tile)["id"], position)
-    assert len(session.game.board.dominoes) == 2
-    assert session.game.board.dominoes[0].right == session.game.board.dominoes[1].left
+    board = session.match.board.dominoes
+    assert len(board) == 2
+    assert board[0].right == board[1].left
 
 
 def test_pass_is_allowed_only_without_moves(session):
-    game = session.game
-    game.current_player_idx = 0
-    game.board.play_domino(Domino(6, 6))
-    game.players[0].hand = [Domino(0, 1)]
+    set_table(session, [D(6, 6)], [[D(0, 1)], [D(6, 1)], [D(0, 2)], [D(0, 3)]])
     session.pass_turn()
-    assert game.players[0].passed_last_turn
-    assert game.consecutive_passes == 1
-    assert game.current_player_idx == 1
+    assert session.snapshot()["players"][0]["passed"]
+    assert session.match.turn == 1
 
 
-def test_four_passes_score_block_once_and_reveal_hands(session):
-    game = session.game
-    game.current_player_idx = 0
-    game.board = Board()
-    game.board.play_domino(Domino(6, 6))
-    game.last_played_team = 1
-    for player, tile in zip(game.players, [Domino(0, 1), Domino(0, 2), Domino(0, 3), Domino(0, 4)]):
-        player.hand = [tile]
-    session.pass_turn()
-    for _ in range(3):
-        session.step_cpu()
-    assert session.result == {"team": 0, "points": 10, "blocked": True}
-    assert game.team_scores == [10, 0]
-    book = session.snapshot()["rounds"]
+def test_tranque_scores_once_reveals_hands_and_winner_leads_next_round(session):
+    set_table(session, [D(6, 6)], [[D(0, 5)], [D(6, 4), D(0, 1)], [D(0, 3)], [D(0, 2)]], turn=1)
+    session.step_cpu()
+    assert session.phase == "round_over"
+    snapshot = session.snapshot()
+    # Team 1 holds 1 + 2 pips against team 0's 5 + 3; seat 1 closed and holds fewer than seat 3.
+    assert snapshot["result"] == {"team": 1, "points": 11, "blocked": True, "nextLeader": 1}
+    assert snapshot["scores"] == [0, 11]
+    book = snapshot["rounds"]
     assert len(book) == 1
-    assert book[0]["blocked"] is True
-    assert book[0]["winner"] is None
-    assert book[0]["scores"] == [10, 0]
+    assert book[0]["winner"] is None and book[0]["nextLeader"] == "Opponent 1"
+    assert book[0]["teamPips"] == [8, 3]
     assert sum(hand["value"] for hand in book[0]["unplayed"]) == book[0]["points"]
-    assert all(player["hand"] is not None for player in session.snapshot()["players"])
+    assert all(player["hand"] is not None for player in snapshot["players"])
     with pytest.raises(MoveError, match="ended"):
         session.step_cpu()
-    assert game.team_scores == [10, 0]
     session.next_round()
-    assert session.game.round_number == 2
-    assert session.game.team_scores == [10, 0]
-    assert session.game.board.is_empty()
-    assert all(len(player.hand) == 7 for player in session.game.players)
-    assert session.snapshot()["rounds"] == book
-    book[0]["scores"][0] = -1
-    book[0]["unplayed"][0]["value"] = -1
-    assert session.snapshot()["rounds"][0]["scores"] == [10, 0]
-    assert session.snapshot()["rounds"][0]["unplayed"][0]["value"] == 1
+    after = session.snapshot()
+    assert (after["round"], after["leader"], after["turn"]) == (2, 1, 1)
+    assert after["scores"] == [0, 11]
+    assert after["board"] == [] and after["opening"] is None
+    assert all(player["count"] == 7 for player in after["players"])
+    assert after["rounds"] == book
 
 
-def test_going_out_uses_existing_scorer_and_finishes_single_round():
+def test_round_winner_may_open_with_any_tile(session):
+    set_table(session, [D(6, 6)], [[D(6, 5)], [D(0, 1)], [D(0, 2)], [D(0, 3)]])
+    session.play("5-6", "right")
+    session.next_round()
+    snapshot = session.snapshot()
+    assert snapshot["turn"] == snapshot["leader"] == 0
+    assert {move["tile"] for move in snapshot["moves"]} == {tile["id"] for tile in snapshot["players"][0]["hand"]}
+    assert {move["position"] for move in snapshot["moves"]} == {"first"}
+
+
+def test_going_out_finishes_single_round():
     session = PatioSession(game_mode="single_round")
-    game = session.game
-    game.current_player_idx = 0
-    game.board.play_domino(Domino(6, 6))
-    for player, tile in zip(game.players, [Domino(1, 6), Domino(2, 2), Domino(3, 3), Domino(4, 4)]):
-        player.hand = [tile]
+    set_table(session, [D(6, 6)], [[D(1, 6)], [D(2, 2)], [D(3, 3)], [D(4, 4)]])
     session.play("1-6", "left")
-    assert game.team_scores == [18, 0]
+    assert session.match.scores == [18, 0]
     assert session.phase == "match_over"
     assert session.snapshot()["rounds"][0]["winner"] == "You"
     assert session.snapshot()["rounds"][0]["points"] == 18
@@ -151,24 +143,44 @@ def test_going_out_uses_existing_scorer_and_finishes_single_round():
         session.next_round()
 
 
+def test_autoplay_lets_the_cpu_take_the_human_seat(session):
+    session.set_autoplay(True)
+    snapshot = session.snapshot()
+    assert snapshot["autoplay"] is True and snapshot["moves"] == []
+    with pytest.raises(MoveError, match="Autoplay"):
+        session.play(snapshot["players"][0]["hand"][0]["id"], "first")
+    for _ in range(2000):
+        if session.phase == "match_over":
+            break
+        if session.phase == "round_over":
+            session.next_round()
+        else:
+            session.step_cpu()
+    assert session.phase == "match_over"
+    assert any(turn.seat == 0 for log in session.match.rounds for turn in log.turns)
+    assert audit(session.match) == []
+    with pytest.raises(MoveError, match="true or false"):
+        session.set_autoplay("yes")
+
+
 @pytest.mark.parametrize("seed", range(12))
-def test_complete_matches_conserve_tiles_and_keep_chain_connected(monkeypatch, seed):
-    monkeypatch.setattr("domino_game.game.engine.shuffle_deck", random.Random(seed).shuffle)
-    session = PatioSession(target_score=100)
+def test_complete_matches_conserve_tiles_and_keep_chain_connected(seed):
+    session = PatioSession(target_score=100, rng=random.Random(seed))
     for _ in range(1000):
         if session.phase == "match_over":
-            assert max(session.game.team_scores) >= 100
+            assert max(session.match.scores) >= 100
             totals = [0, 0]
             for number, hand in enumerate(session.snapshot()["rounds"], 1):
                 assert hand["round"] == number
                 assert sum(player["value"] for player in hand["unplayed"]) == hand["points"]
                 totals[hand["team"]] += hand["points"]
                 assert hand["scores"] == totals
-            assert totals == session.game.team_scores
+            assert totals == session.match.scores
+            assert audit(session.match) == []
             return
         if session.phase == "round_over":
             session.next_round()
-        elif session.game.current_player_idx:
+        elif session.match.turn:
             session.step_cpu()
         else:
             moves = session.snapshot()["moves"]
@@ -176,15 +188,16 @@ def test_complete_matches_conserve_tiles_and_keep_chain_connected(monkeypatch, s
                 session.play(moves[0]["tile"], moves[0]["position"])
             else:
                 session.pass_turn()
-        game = session.game
-        tiles = game.board.dominoes + [tile for player in game.players for tile in player.hand]
+        match = session.match
+        tiles = match.board.dominoes + [tile for hand in match.hands for tile in hand]
         assert len(tiles) == len(set(tiles)) == 28
-        assert all(left.right == right.left for left, right in zip(game.board.dominoes, game.board.dominoes[1:]))
+        assert all(left.right == right.left for left, right in zip(match.board.dominoes, match.board.dominoes[1:]))
     pytest.fail(f"Match with seed {seed} did not finish within 1000 actions.")
 
 
 @pytest.mark.parametrize(
-    "config", [{"target_score": 0}, {"target_score": True}, {"target_score": 1001}, {"game_mode": "unknown"}]
+    "config",
+    [{"target_score": 0}, {"target_score": True}, {"target_score": 1001}, {"game_mode": "unknown"}, {"autoplay": 1}],
 )
 def test_invalid_settings_fail_at_boundary(config):
     with pytest.raises(MoveError):
@@ -193,7 +206,7 @@ def test_invalid_settings_fail_at_boundary(config):
 
 @pytest.fixture
 def http_game():
-    server = PatioServer(0, {"target_score": 200, "game_mode": "target_score"})
+    server = PatioServer(0, {"target_score": 200, "game_mode": "target_score", "autoplay": False})
     worker = threading.Thread(target=server.serve_forever, daemon=True)
     worker.start()
     url = f"http://127.0.0.1:{server.server_port}"
@@ -279,3 +292,23 @@ def test_scorebook_survives_http_refresh_and_resets_with_new_match(http_game):
         replacement = json.load(response)
     assert replacement["rounds"] == []
     assert replacement["scores"] == [0, 0]
+
+
+def test_autoplay_endpoint_and_new_game_option(http_game):
+    client, url = http_game
+    with client.open(url + "/api/state") as response:
+        state = json.load(response)
+    with post(client, url, "/api/autoplay", {"enabled": True, "revision": state["revision"]}) as response:
+        state = json.load(response)
+    assert state["autoplay"] is True
+    for _ in range(40):
+        if state["phase"] != "playing":
+            break
+        with post(client, url, "/api/step", {"revision": state["revision"]}) as response:
+            state = json.load(response)
+    assert any(event["player"] == 0 for event in state["history"]) or state["phase"] != "playing"
+    with pytest.raises(HTTPError) as error:
+        post(client, url, "/api/autoplay", {"enabled": "on", "revision": state["revision"]})
+    assert error.value.code == 400
+    with post(client, url, "/api/game", {"target": 100, "autoplay": False}) as response:
+        assert json.load(response)["autoplay"] is False

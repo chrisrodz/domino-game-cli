@@ -1,66 +1,47 @@
-"""Tests for scoring logic."""
+"""Round scoring under Puerto Rican Doscientos rules."""
 
-from domino_game.game.engine import Game
-from domino_game.game.scoring import calculate_round_score, determine_winner
-from domino_game.models import Domino
+import pytest
 
-
-def test_scoring():
-    """Test scoring calculation."""
-    game = Game()
-    game.setup_players()
-
-    # Simulate a player going out
-    game.players[0].hand = []  # Player went out
-    game.players[1].hand = [Domino(3, 5), Domino(2, 2)]  # 8 + 4 = 12
-    game.players[2].hand = [Domino(1, 6)]  # 7
-    game.players[3].hand = [Domino(4, 4)]  # 8
-
-    winning_team, points = calculate_round_score(game.players, game.board)
-    assert winning_team == 0
-    assert points == 27
+from domino_game.game.rules import RuleError, score_round
+from domino_game.game.scoring import determine_winner
+from domino_game.models import Domino as D
 
 
-def test_blocked_game():
-    """Test blocked game scenario."""
-    game = Game()
-    game.setup_players()
-
-    # Simulate a blocked game with different hand values
-    game.players[0].hand = [Domino(3, 5)]  # 8 points
-    game.players[1].hand = [Domino(2, 2), Domino(1, 1)]  # 6 points (winner)
-    game.players[2].hand = [Domino(4, 5)]  # 9 points
-    game.players[3].hand = [Domino(6, 6)]  # 12 points
-
-    winning_team, points = calculate_round_score(game.players, game.board, blocking_team=1)
-    assert winning_team == 1
-    assert points == 35
+def test_domino_scores_every_remaining_pip_including_partner():
+    hands = [[], [D(3, 5), D(2, 2)], [D(1, 6)], [D(4, 4)]]
+    outcome = score_round(hands, closer=0)
+    assert (outcome.team, outcome.points, outcome.blocked, outcome.next_leader) == (0, 27, False, 0)
 
 
-def test_blocked_game_tie_prefers_blocking_team():
-    """In a tie, the blocking team should win."""
-    game = Game()
-    game.setup_players()
+def test_tranque_goes_to_lower_team_total_not_lowest_single_hand():
+    # Seat 1 holds the lowest hand (6), but team 0 holds fewer pips (8 + 9 < 6 + 12).
+    hands = [[D(3, 5)], [D(2, 2), D(1, 1)], [D(4, 5)], [D(6, 6)]]
+    outcome = score_round(hands, closer=1)
+    assert outcome.team_pips == (17, 18)
+    assert (outcome.team, outcome.points, outcome.blocked) == (0, 35, True)
+    assert outcome.next_leader == 0, "the winning team's member with fewer pips leads next"
 
-    # Teams 0 and 1 tie with the same low value
-    game.players[0].hand = [Domino(1, 4)]  # 5 points (Team 0)
-    game.players[1].hand = [Domino(2, 3)]  # 5 points (Team 1)
-    game.players[2].hand = [Domino(5, 5)]  # 10 points
-    game.players[3].hand = [Domino(6, 4)]  # 10 points
 
-    winning_team, points = calculate_round_score(game.players, game.board, blocking_team=0)
-    assert winning_team == 0
-    # All unplayed dominoes count toward the score
-    assert points == 30
+def test_tranque_partners_tied_on_pips_resolve_nearest_the_closer():
+    hands = [[D(1, 4)], [D(5, 5)], [D(2, 3)], [D(6, 4)]]
+    assert score_round(hands, closer=1).next_leader == 2
+    assert score_round(hands, closer=3).next_leader == 0
+
+
+def test_tranque_tied_teams_go_to_the_closer_who_leads_next():
+    hands = [[D(1, 4)], [D(2, 3)], [D(5, 5)], [D(6, 4)]]
+    for closer in range(4):
+        outcome = score_round(hands, closer=closer)
+        assert outcome.team_pips == (15, 15)
+        assert (outcome.team, outcome.points, outcome.next_leader) == (closer % 2, 30, closer)
+
+
+def test_scoring_rejects_inconsistent_closer():
+    with pytest.raises(RuleError, match="different seat"):
+        score_round([[D(1, 1)], [], [D(2, 2)], [D(3, 3)]], closer=0)
 
 
 def test_determine_winner():
-    """Test winner determination."""
-    team_scores = [150, 100]
-    assert determine_winner(team_scores, 200) == -1
-
-    team_scores = [200, 150]
-    assert determine_winner(team_scores, 200) == 0
-
-    team_scores = [180, 210]
-    assert determine_winner(team_scores, 200) == 1
+    assert determine_winner([150, 100], 200) == -1
+    assert determine_winner([200, 150], 200) == 0
+    assert determine_winner([180, 210], 200) == 1

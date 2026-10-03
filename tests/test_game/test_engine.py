@@ -1,7 +1,7 @@
 """Tests for game engine."""
 
 from domino_game.game.engine import Game
-from domino_game.models import PlayerType
+from domino_game.models import Board, Domino, PlayerType
 
 
 def test_dealing():
@@ -53,3 +53,26 @@ def test_find_starting_player():
                 break
         if has_double_six:
             assert game.players[starting_idx].has_double_six()
+
+
+def test_cli_round_winner_leads_next_round_with_any_tile():
+    """Regression: later rounds used to start with seat 0 and force its first tile."""
+    game = Game()
+    game.setup_players()
+    game.deal_dominoes()
+    game.board.play_domino(Domino(6, 6))
+    for player, hand in zip(game.players, [[Domino(0, 1)], [Domino(6, 4), Domino(0, 2)], [Domino(0, 3)], [Domino(0, 4)]]):
+        player.hand = hand
+    game.board.play_domino(Domino(6, 4), on_left=False)
+    game.players[1].remove_domino(Domino(6, 4))
+    game.last_seat = 1
+    assert not game.round_ended()
+    game.players[1].hand = []
+    assert game.round_ended()
+    assert game.score_current_round() == (1, 1 + 3 + 4)
+    game.round_number = 2
+    game.deal_dominoes()
+    game.board = Board()
+    assert game.find_starting_player() == 1
+    leader = game.players[1]
+    assert [tile for tile, _ in game.valid_moves(leader)] == leader.hand

@@ -19,6 +19,7 @@ def patio(
     port: int = typer.Option(8000, min=1, max=65535, help="Local browser port"),
     target: int = typer.Option(200, min=1, max=1000, help="Target score"),
     single_round: bool = typer.Option(False, "--single-round", help="Play one round"),
+    autoplay: bool = typer.Option(False, "--autoplay", help="Watch CPUs play every seat, including yours"),
     browser: bool = typer.Option(True, "--browser/--no-browser", help="Open the browser automatically"),
 ):
     """Play the existing 2v2 game at a Blender-built 3D patio table."""
@@ -27,11 +28,41 @@ def patio(
 
     try:
         serve(
-            port=port, target_score=target, game_mode="single_round" if single_round else "target_score", open_browser=browser
+            port=port,
+            target_score=target,
+            game_mode="single_round" if single_round else "target_score",
+            autoplay=autoplay,
+            open_browser=browser,
         )
     except MoveError as error:
         console.print(f"[red]{error}[/red]")
         raise typer.Exit(1) from error
+
+
+@app.command()
+def simulate(
+    matches: int = typer.Option(200, "--matches", "-n", min=1, max=100_000, help="Matches to play"),
+    target: int = typer.Option(200, min=1, max=1000, help="Target score"),
+    single_round: bool = typer.Option(False, "--single-round", help="Each match is one round"),
+    seed: Optional[int] = typer.Option(None, help="Base seed; match N uses seed + N"),
+):
+    """Play all-CPU matches headlessly and audit every turn against the rules."""
+    from domino_game.game.simulate import simulate as run
+
+    report = run(matches=matches, target=target, mode="single_round" if single_round else "target_score", seed=seed)
+    blocked_share = report.blocked / report.rounds if report.rounds else 0
+    console.print(
+        f"{report.matches} matches, {report.rounds} rounds "
+        f"({report.rounds / report.matches:.1f} per match), "
+        f"{report.blocked} tranques ({blocked_share:.0%}, {report.tied_blocks} tied).\n"
+        f"Match wins: You & Ally {report.team_wins[0]}, Opponents {report.team_wins[1]}."
+    )
+    if report.violations:
+        for problem in report.violations[:20]:
+            console.print(f"[red]{problem}[/red]")
+        console.print(f"[red]{len(report.violations)} rule violations.[/red]")
+        raise typer.Exit(1)
+    console.print("[green]Referee: no rule violations.[/green]")
 
 
 @app.command()

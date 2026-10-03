@@ -10,6 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from domino_game.game.rules import RuleError
 from domino_game.patio.session import MoveError, PatioSession
 
 WEB_ROOT = Path(__file__).with_name("web")
@@ -101,7 +102,9 @@ class PatioHandler(SimpleHTTPRequestHandler):
                 session, cookie = self._session()
                 if self.path == "/api/game":
                     replacement = PatioSession(
-                        target_score=payload.get("target", 200), game_mode=payload.get("mode", "target_score")
+                        target_score=payload.get("target", 200),
+                        game_mode=payload.get("mode", "target_score"),
+                        autoplay=payload.get("autoplay", False),
                     )
                     replacement.revision = session.revision + 1
                     session.__dict__.update(replacement.__dict__)
@@ -119,11 +122,13 @@ class PatioHandler(SimpleHTTPRequestHandler):
                         session.step_cpu()
                     elif self.path == "/api/next":
                         session.next_round()
+                    elif self.path == "/api/autoplay":
+                        session.set_autoplay(payload.get("enabled"))
                     else:
                         self._json({"error": "Unknown game endpoint."}, 404)
                         return
                 self._json(session.snapshot(), cookie=cookie)
-            except MoveError as error:
+            except RuleError as error:
                 self._json({"error": str(error)}, 400)
 
     def log_message(self, format: str, *args) -> None:
@@ -131,8 +136,15 @@ class PatioHandler(SimpleHTTPRequestHandler):
             super().log_message(format, *args)
 
 
-def serve(*, port: int = 8000, target_score: int = 200, game_mode: str = "target_score", open_browser: bool = True) -> None:
-    config = {"target_score": target_score, "game_mode": game_mode}
+def serve(
+    *,
+    port: int = 8000,
+    target_score: int = 200,
+    game_mode: str = "target_score",
+    autoplay: bool = False,
+    open_browser: bool = True,
+) -> None:
+    config = {"target_score": target_score, "game_mode": game_mode, "autoplay": autoplay}
     PatioSession(**config)
     try:
         server = PatioServer(port, config)
