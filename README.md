@@ -32,6 +32,75 @@ That's it! Use `uv run python main.py` to start playing (see Usage below).
 
 ## 🎮 Usage
 
+### Play in 3D with Blender-built assets
+
+```bash
+uv run python main.py patio
+
+# Optional: custom score, single round, or another local port
+uv run python main.py patio --target 100
+uv run python main.py patio --single-round
+uv run python main.py patio --port 8001 --no-browser
+```
+
+El Patio opens at `http://127.0.0.1:8000`. Play the existing 2v2 game at a
+sunlit backyard table, with white plastic chairs and banana plants inspired by
+the setting of Bad Bunny's *Debi Tirar Mas Fotos* cover. All scene geometry is
+original, created in Blender; no album artwork or music is included.
+
+Select a highlighted tile in your hand (or on the 3D table), then choose an
+available end on the table or below your hand. A tile matching both ends can
+be played on either side, even when the open values are equal. Keys 1-7 select
+tiles. With a mouse, drag a hand tile to a highlighted end and release to play.
+Hover or focus an end to preview the exact placement; releasing elsewhere cancels
+the drag. On touch screens, tap a tile and an end. CPU turns play automatically.
+Drag the patio to orbit, scroll or pinch to zoom, or choose **Table view** for an overhead camera.
+**New game** offers a single round or a target score from 1 to 1000.
+After a round, **View board** reveals the completed snake and remaining
+hands. **Round score** brings the result back.
+**La libreta** records each finished hand, its points, and running team totals.
+The notebook stays with the match across rounds and browser refreshes.
+**Table sounds** enables short tile slaps and a cue for your turn. Sound starts
+off; your preference is remembered by the browser. Tile motion follows the
+playing seat, and respects the browser's reduced-motion preference.
+
+The browser uses the Python game's dealing, valid moves, CPU strategy, and
+scoring. Blocked rounds award all unplayed pips, including the winning hand;
+ties favor the team that last played. Later rounds use the CLI's current opener
+behavior (You start). Refreshing retains the game while the server runs.
+Stopping the server clears games. Each browser session gets a separate match.
+
+Requires a browser with WebGL 2. The Python server binds only to loopback;
+it is intended for local play. All browser dependencies and assets are included,
+so playing requires no internet connection or Node.js tooling.
+
+The courtyard uses handmade terracotta pavers, a limewashed garden wall,
+veined banana foliage, glazed espresso cups, and a mahogany table with brass
+joinery and woven green baize. Ivory dominoes have recessed pips, brass spinners,
+and green backs. The hand controls share their ivory and brass finish.
+
+Albedo, roughness, and normal maps are authored by the Blender build scripts
+and packed into the assets; no texture downloads are needed. Desktop rendering
+adds contact shading and 4096-pixel sun shadows. Touch devices skip the contact
+shading pass and use 2048-pixel shadows to reduce GPU work.
+
+The editable scene is `domino_game/patio/web/assets/el-patio.blend`.
+Its collections separate the courtyard, all 28 master tiles, and a staged
+presentation arrangement. Presentation tiles stay out of the playable exports.
+To rebuild the two GLB files with Blender 4.5 or later:
+
+```bash
+blender --background --python tools/build_patio.py
+```
+
+The Blender meshes and UI faces share `assets/domino-spec.json` for tile
+proportions and pip positions. The board anchors the opening tile, places
+doubles across the chain, and bends using the matching half of each tile.
+Tiles touch without overlapping; long snakes scale together to fit the table.
+
+The browser renderer is Three.js 0.186.1 (MIT), vendored with its license in
+`domino_game/patio/web/vendor/`. The existing terminal commands remain available.
+
 ### Start a Game
 
 ```bash
@@ -180,6 +249,12 @@ Run with coverage:
 
 ```bash
 uv run pytest --cov=domino_game --cov-report=term-missing
+```
+
+The 3D board geometry uses Node's built-in test runner, with no npm dependencies:
+
+```bash
+node --test tests/test_patio_layout.mjs
 ```
 
 Continuous Integration runs automatically on:

@@ -1,0 +1,185 @@
+.view-controls {
+  flex-shrink: 0;
+}
+.scene-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+}
+.scene-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#sound-button[aria-pressed="true"] .sound-slash {
+  display: none;
+}
+.scene-bottom > p {
+  flex: 1;
+  min-width: 0;
+}
+.scene-bottom > p > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.drop-target:not(:disabled) {
+  outline: 3px solid #385435;
+  outline-offset: 4px;
+}
+.drag-ficha {
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 50px;
+  height: 100px;
+  border-radius: 8px;
+  box-shadow:
+    0 6px 0 #b7ae95,
+    0 16px 25px #15281955;
+  pointer-events: none;
+  z-index: 10;
+}
+.hand.dragging .domino.selected {
+  opacity: 0.3;
+}
+@media (pointer: fine) {
+  .domino.legal {
+    cursor: grab;
+  }
+  .hand.dragging {
+    cursor: grabbing;
+  }
+}
+#scorebook-dialog {
+  width: min(560px, calc(100% - 32px));
+  background-color: #f5f1e4;
+  background-image: repeating-linear-gradient(transparent 0 31px, #d7decb66 31px 32px);
+}
+#scorebook-dialog h2 {
+  margin-bottom: 8px;
+}
+#book-caption {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.book-scores {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin: 25px 0 8px;
+}
+.book-scores > div {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  gap: 8px;
+}
+.book-scores span {
+  font-size: 12px;
+}
+.book-scores strong {
+  font:
+    48px/1 Georgia,
+    serif;
+  font-variant-numeric: tabular-nums;
+}
+.book-scores .book-divider {
+  font:
+    30px Georgia,
+    serif;
+  color: #7e8967;
+}
+#book-target {
+  text-align: center;
+  margin-bottom: 28px;
+}
+#scorebook-empty {
+  padding: 24px 0;
+  font:
+    italic 18px/1.5 Georgia,
+    serif;
+  text-align: center;
+}
+#scorebook-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0 25px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+#scorebook-table caption {
+  text-align: left;
+  font-size: 10px;
+  color: var(--muted);
+  padding-bottom: 14px;
+}
+#scorebook-table th,
+#scorebook-table td {
+  text-align: left;
+  border-bottom: 1px solid #bdc5ae;
+  padding: 13px 4px;
+}
+#scorebook-table thead th {
+  font-size: 10px;
+}
+#scorebook-table td:nth-child(n + 3),
+#scorebook-table th:nth-child(n + 3) {
+  text-align: right;
+}
+.hand-points {
+  color: #29402b;
+  font-weight: 700;
+}
+.hand-total {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.result-actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 12px;
+  background: var(--paper);
+}
+@media (max-width: 760px) {
+  .scene-button {
+    min-width: 44px;
+    padding: 10px;
+  }
+  .control-label {
+    display: none;
+  }
+  .scene-bottom > p {
+    max-width: none;
+  }
+  .scene-bottom .domino-face {
+    display: none;
+  }
+  #scorebook-dialog {
+    padding: 26px 20px;
+  }
+  .book-scores {
+    gap: 20px;
+  }
+  .book-scores strong {
+    font-size: 40px;
+  }
+  #scorebook-table {
+    font-size: 11px;
+  }
+  #scorebook-table thead th {
+    font-size: 9px;
+  }
+}
