@@ -1,0 +1,34 @@
+{
+  "name": "@chrisrodz/dominoes",
+  "version": "0.1.0",
+  "description": "Headless Puerto Rican partnership dominoes (Doscientos) engine: rules, match state machine, CPU strategy, referee, and simulator.",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrisrodz/domino-game-cli.git"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"js/test/**/*.test.ts\"",
+    "prepare": "tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "typescript": "^7.0.2"
+  }
+}
